@@ -7,6 +7,83 @@
 </head>
 <body>
     <h1>Welcome to the March Madness Simulator</h1>
-    <p>More features coming soon!</p>
+    <p>Enter your preferences below to simulate a bracket:</p>
+
+    </form>
+        <!-- Year Input (enter) -->
+        <label for="year">Year:</label>
+        <input type="number" id="year" name="year" min="2008" max="2024" required><br><br>
+
+        <!-- Picked Winner Input (enter) -->
+        <label for="pickedWinner">Picked Winner:</label>
+        <input type="text" id="picked_winner" name="picked_winner" required><br><br>
+
+        <!-- Playstyle Input (dropdown) -->
+        <label for="playstyle">Playstyle:</label>
+        <select id="playstyle" name="playstyle">
+            <option value="Balanced">Balanced</option>
+            <option value="I Love Offense">I Love Offense</option>
+            <option value="Defense Wins Championships">Defense Wins Championships</option>
+        </select><br><br>
+
+        <!-- Boldness Input (dropdown) -->
+        <label for="boldness">Boldness:</label>
+        <select id="boldness" name="boldness">
+            <option value="Go Big or Go Home">Go Big or Go Home</option>
+            <option value="Bold">Bold</option>
+            <option value="Normal">Normal</option>
+            <option value="Safe">Safe</option>
+            <option value="So Safe">So Safe</option>
+        </select><br><br>
+
+        <!-- Submit Button -->
+        <button type="button" onclick="runSimulation()">Simulate</button>
+    </form>
+
+    <!-- Placeholder for results -->
+    <div id="results"></div>
+
+    <script>
+
+        console.log("JavaScript is running!");
+
+        // JavaScript to send inputs to the backend 
+        async function runSimulation() {
+            // retrieve user inputs
+            const year = document.getElementById('year').value;
+            const picked_winner = document.getElementById('picked_winner').value;
+            const playstyle = document.getElementById('playstyle').value;
+            const boldness = document.getElementById('boldness').value;
+
+            console.log("User Inputs:", { year, picked_winner, playstyle, boldness });
+            
+            // send inputs to the backend
+            const response = await fetch('/simulate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    year: parseInt(year, 10),
+                    picked_winner: picked_winner,
+                    playstyle: playstyle,
+                    boldness: boldness
+                })
+            });
+
+            console.log("Response Status:", response.status);
+
+            // get json response
+            const result = await response.json();
+
+            console.log("Response Data:", result);
+
+            // display the results
+            const resultsDiv = document.getElementById('results');
+            if (result.status === 'success') {
+                resultsDiv.innerHTML = `<h2>Simulation Results</h2><pre>${JSON.stringify(result.results, null, 2)}</pre>`;
+            } else {
+                resultsDiv.innerHTML = `<h2>Error</h2><p>${result.message}</p>`;
+            }
+        }
+    </script>
 </body>
 </html>
