@@ -11,8 +11,8 @@ warnings.filterwarnings("ignore")
 ## SIMULATION
 class BracketSimulator: 
 
-    def __init__(self, data_file, year, boldness="Normal", picked_winner=None, playstyle="Balanced"):
-        self.data_file = data_file
+    def __init__(self, data, year, picked_winner=None, playstyle="Balanced", boldness="Normal"):
+        self.data = data
         self.year = year
         self.boldness = boldness
         self.picked_winner = picked_winner
@@ -21,16 +21,14 @@ class BracketSimulator:
 
     def sim_bracket(self, current_matchups=None):
 
-        data = pd.read_parquet(self.data_file)
-
         if current_matchups is None:
-            current_matchups = data[(data["year"] == self.year) & 
-                                         (data["type"] == "T") &
-                                         (data["current_round"] == 64)]
+            current_matchups = self.data[(self.data["year"] == self.year) & 
+                                         (self.data["type"] == "T") &
+                                         (self.data["current_round"] == 64)]
 
         # train model on all available years except the current year
-        training_data = data[(data["year"] != self.year) | 
-                                  ((data["year"] == self.year) & (data["type"] != "T"))]
+        training_data = self.data[(self.data["year"] != self.year) | 
+                                  ((self.data["year"] == self.year) & (self.data["type"] != "T"))]
         model, predictors = self.train_model(training_data)
 
         # predict matchups
@@ -230,4 +228,3 @@ class BracketSimulator:
             matchups[f'{variable}_diff'] = matchups[f'{variable}_1'] - matchups[f'{variable}_2']
             
         return matchups
-
