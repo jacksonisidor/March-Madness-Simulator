@@ -23,7 +23,7 @@ class BracketSimulator:
     def score_bracket(self):
 
         predicted = self.predicted_bracket[['team_1', 'team_2', 'prediction', 'current_round']]
-        actual = self.data[['team_1', 'team_2', 'winner', 'current_round']]
+        actual = self.data[(self.data["year"] == self.year) & (self.data["type"] == "T")][['team_1', 'team_2', 'winner', 'current_round']]
 
         score = 0
         for (pred_index, pred_matchup), (act_index, act_matchup) in zip(predicted.iterrows(), actual.iterrows()):
@@ -254,6 +254,6 @@ class BracketSimulator:
         return matchups
 
 data = pd.read_parquet("data/all_matchup_stats.parquet")
-sim = BracketSimulator(data, 2024)
+sim = BracketSimulator(data, 2019)
 sim.sim_bracket()
 print(sim.score_bracket())
