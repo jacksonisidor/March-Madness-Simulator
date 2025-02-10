@@ -5,52 +5,175 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>March Madness Simulator</title>
     <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: flex-start;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #e5e7ea;
+            height: 100vh;
+            padding-top: 40px; 
+        }
+
+
+        /* Title Styling */
+        h1 {
+            font-size: 4rem;
+            color: #1F4DA3; /* Blue */
+            text-align: center;
+        }
+
+        /* Container for inputs */
+        .input-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        /* Style for input groups */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 14px;
+            text-align: center;
+            border-radius: 5px;
+            border: 1px solid black;
+            width: 220px;
+        }
+
+        .input-group select,
+        .input-group input {
+            background-color: #e7e5e5; 
+            border: 1px solid black; 
+            padding: 5px;
+            color: black; 
+        }
+
+        /* Simulate Button */
+        .simulate-button {
+            background-color: #E74C3C; /* Red */
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 30px;
+        }
+
+        .simulate-button:hover {
+            background-color: #C0392B;
+        }
+
+        /* COVID Note */
         .covid-note {
             position: absolute;
-            top: 10px;
-            right: 15px;
+            bottom: 10px;
+            left: 15px;
             font-size: 14px;
             color: #ff0000;
             font-weight: bold;
         }
+
+        /* Loading Message */
+        #loadingMessage {
+            font-size: 16px;
+            font-weight: bold;
+            color: #555;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <h1>Welcome to the March Madness Simulator</h1>
-    <p>Enter your preferences below to simulate a bracket:</p>
 
-    <!-- Year Selection -->
-    <label for="year">Year:</label>
-    <select id="year" name="year">
-        {% for year in valid_years %}
-            <option value="{{ year }}" {% if year == max_year %}selected{% endif %}>{{ year }}</option>
-        {% endfor %}
-    </select><br><br>
-
-    <!-- Add covid note about years -->
+    <!-- COVID Note -->
     <div class="covid-note">
-        <p>Note: The 2020 tournament was canceled and 2021 has missing data (both due to COVID)</p>
+        <p>Note: The 2020 tournament was canceled, and 2021 has missing data due to COVID.</p>
     </div>
 
-    <!-- Picked Winner Input (dropdown, updated dynamically basied on year) -->
-    <label for="picked_winner">Picked Winner:</label>
-    <select id="picked_winner" name="picked_winner">
-        <option value="None" selected>None</option> <!-- Default -->
-    </select><br><br>
+    <!-- Title -->
+    <h1>March Madness Simulator</h1>
+
+    <!-- Inputs Container -->
+    <div class="input-container">
+        <!-- Year Selection -->
+        <div class="input-group">
+            <label for="year">Year</label>
+            <select id="year" name="year">
+                {% for year in valid_years %}
+                    <option value="{{ year }}" {% if year == max_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Picked Winner Selection -->
+        <div class="input-group">
+            <label for="picked_winner">Favorite Team</label>
+            <select id="picked_winner" name="picked_winner">
+                <option value="None" selected>None</option> <!-- Default -->
+            </select>
+        </div>
+
+        <!-- Playstyle Selection -->
+        <div class="input-group">
+            <label for="playstyle">Playstyle</label>
+            <select id="playstyle" name="playstyle">
+                <option value="Balanced" selected>Balanced</option>
+                <option value="I Love Offense">I Love Offense</option>
+                <option value="Defense Wins Championships">Defense Wins Championships</option>
+            </select>
+        </div>
+
+        <!-- Boldness Selection -->
+        <div class="input-group">
+            <label for="boldness">Boldness</label>
+            <select id="boldness" name="boldness">
+                <option value="Go Big or Go Home">Go Big or Go Home</option>
+                <option value="Bold">Bold</option>
+                <option value="Normal" selected>Normal</option>
+                <option value="Safe">Safe</option>
+                <option value="So Safe">So Safe</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Simulate Button -->
+    <button class="simulate-button" onclick="runSimulation()">Simulate</button>
+
+    <!-- Loading Message -->
+    <p id="loadingMessage">Simulating... Please wait.</p>
 
     <script>
         async function updateTeams() {
             const year = document.getElementById('year').value;
             const teamDropdown = document.getElementById('picked_winner');
 
-            // get teams for the selected year
+            // Fetch teams for the selected year
             const response = await fetch(`/get_teams/${year}`);
             const teams = await response.json();
 
-            // clear current dropdown options
+            // Clear current dropdown options
             teamDropdown.innerHTML = "";
 
-            // fill in the new options
+            // Fill in new options
             teams.forEach(team => {
                 const option = document.createElement("option");
                 option.value = team;
@@ -59,49 +182,20 @@
             });
         }
 
-        // load teams when the page first loads (for the default year)
+        // Load teams when the page first loads & when year changes
         window.onload = updateTeams;
-    </script>
+        document.getElementById('year').addEventListener('change', updateTeams);
 
-    <!-- Playstyle Input (dropdown) -->
-    <label for="playstyle">Playstyle:</label>
-    <select id="playstyle" name="playstyle">
-        <option value="Balanced">Balanced</option>
-        <option value="I Love Offense">I Love Offense</option>
-        <option value="Defense Wins Championships">Defense Wins Championships</option>
-    </select><br><br>
-
-    <!-- Boldness Input (dropdown) -->
-    <label for="boldness">Boldness:</label>
-    <select id="boldness" name="boldness">
-        <option value="Go Big or Go Home">Go Big or Go Home</option>
-        <option value="Bold">Bold</option>
-        <option value="Normal" selected>Normal</option>
-        <option value="Safe">Safe</option>
-        <option value="So Safe">So Safe</option>
-    </select><br><br>
-
-    <!-- Submit Button -->
-    <button type="button" onclick="runSimulation()">Simulate</button>
-
-    <p id="loadingMessage" style="display: none;">Simulating... Please wait.</p>
-
-    <script>
-        // send results to the backend
         async function runSimulation() {
-            // Show the loading message
-            const loadingMessage = document.getElementById("loadingMessage");
-            loadingMessage.style.display = "block";
-            loadingMessage.textContent = "Simulating... Please wait.";
-    
-            // Retrieve user inputs
+            document.getElementById("loadingMessage").style.display = "block";
+            document.getElementById("loadingMessage").textContent = "Simulating... Please wait.";
+
             const year = document.getElementById('year').value;
             const picked_winner = document.getElementById('picked_winner').value;
             const playstyle = document.getElementById('playstyle').value;
             const boldness = document.getElementById('boldness').value;
-            
+
             try {
-                // Send inputs to the backend
                 const response = await fetch('/simulate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -112,22 +206,18 @@
                         boldness: boldness
                     })
                 });
-    
-                // Get response
+
                 const result = await response.json();
-    
-                // Redirect when simulation is ready
                 if (result.redirect_url) {
                     window.location.href = result.redirect_url; 
                 } else {
-                    loadingMessage.textContent = "Error: Simulation failed.";
+                    document.getElementById("loadingMessage").textContent = "Error: Simulation failed.";
                 }
             } catch (error) {
-                loadingMessage.textContent = "Error: Something went wrong.";
+                document.getElementById("loadingMessage").textContent = "Error: Something went wrong.";
             }
         }
     </script>
-    
 
 </body>
 </html>
