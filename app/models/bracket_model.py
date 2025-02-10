@@ -17,33 +17,56 @@ class BracketSimulator:
         self.boldness = boldness
         self.picked_winner = picked_winner
         self.playstyle = playstyle
+        self.predicted_bracket = None
+
+    
+    def score_bracket(self):
+
+        predicted = self.predicted_bracket[['team_1', 'team_2', 'prediction', 'current_round']]
+        actual = self.data[['team_1', 'team_2', 'winner', 'current_round']]
+
+        score = 0
+        for (pred_index, pred_matchup), (act_index, act_matchup) in zip(predicted.iterrows(), actual.iterrows()):
+            
+            if (pred_matchup["team_1"] == act_matchup["team_1"]) and (pred_matchup["prediction"] == act_matchup["winner"] == 1):
+                score += 64 / pred_matchup["current_round"]
+                
+            elif (pred_matchup["team_2"] == act_matchup["team_2"]) and (pred_matchup["prediction"] == act_matchup["winner"] == 0): 
+                score += 64 / pred_matchup["current_round"]
+                
+        return int(score)
+
         
-
     def sim_bracket(self, current_matchups=None):
-
         if current_matchups is None:
-            current_matchups = self.data[(self.data["year"] == self.year) & 
-                                         (self.data["type"] == "T") &
-                                         (self.data["current_round"] == 64)]
+            current_matchups = self.data[
+                (self.data["year"] == self.year) & 
+                (self.data["type"] == "T") & 
+                (self.data["current_round"] == 64)
+            ]
 
-        # train model on all available years except the current year
-        training_data = self.data[(self.data["year"] != self.year) | 
-                                  ((self.data["year"] == self.year) & (self.data["type"] != "T"))]
+        training_data = self.data[
+            (self.data["year"] != self.year) | 
+            ((self.data["year"] == self.year) & (self.data["type"] != "T"))
+        ]
         model, predictors = self.train_model(training_data)
 
-        # predict matchups
         predictions = self.predict_games(model, current_matchups, predictors)
 
-        # base case for recursion (we are in the championship round)
+        # Base case: Assign `self.predicted_bracket` and stop recursion
         if predictions["current_round"].iloc[0] == 2:
-            return predictions
-        
-        # pass teams on to the next round in a new df and combine them into new matchups
+            self.predicted_bracket = predictions
+            return  
+
         next_round_teams = self.get_winner_info(predictions)
         next_round_matchups = self.next_sim_matchups(next_round_teams)
 
-        # recurse through making a simulated df that mimics the structure of the actual df
-        return pd.concat([predictions, self.sim_bracket(next_round_matchups)], ignore_index=True)
+        # Recursively simulate remaining rounds
+        self.sim_bracket(next_round_matchups)
+
+        # After recursion, assign full bracket to `self.predicted_bracket`
+        self.predicted_bracket = pd.concat([predictions, self.predicted_bracket], ignore_index=True)
+
     
 
     def train_model(self, training_data):
@@ -122,9 +145,9 @@ class BracketSimulator:
         matchups.loc[matchups["seed_1"] == matchups["seed_2"], "prediction"] = (matchups["win probability"] > 0.5)
 
 
-        # force the user-picked winner to advance (True if they are team_1, False if they are team_2)
-        matchups.loc[matchups["team_1"] == self.picked_winner, "prediction"] = True
-        matchups.loc[matchups["team_2"] == self.picked_winner, "prediction"] = False
+        # force the user-picked winner to advance (1 if they are team_1, 0 if they are team_2 to match input data)
+        matchups.loc[matchups["team_1"] == self.picked_winner, "prediction"] = 1
+        matchups.loc[matchups["team_2"] == self.picked_winner, "prediction"] = 0
 
         return matchups
 
@@ -228,3 +251,8 @@ class BracketSimulator:
             matchups[f'{variable}_diff'] = matchups[f'{variable}_1'] - matchups[f'{variable}_2']
             
         return matchups
+
+data = pd.read_parquet("data/all_matchup_stats.parquet")
+sim = BracketSimulator(data, 2024)
+sim.sim_bracket()
+print(sim.score_bracket())
