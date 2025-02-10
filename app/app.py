@@ -10,12 +10,22 @@ data = pd.read_parquet("data/all_matchup_stats.parquet")
 
 print('RETRIEVED GAME DATA')
 
-# Define a route for the home page
+# Route for the home page
 @app.route('/')
 def home():
-    return render_template('home.html')
+    max_year = data["year"].max()
+    return render_template('home.html', max_year=max_year)
 
-# Define a route for simulation
+# Route to team list for a given year
+@app.route('/get_teams/<int:year>')
+def get_teams(year):
+    tournament_teams = data[(data["year"] == year) & (data["type"] == "T")]
+    unique_teams = sorted(set(tournament_teams["team_1"].tolist() + tournament_teams["team_2"].tolist()))
+    
+    return jsonify(["None"] + unique_teams)  # Send JSON response
+
+
+# Roate for simulation
 @app.route('/simulate', methods=['POST'])
 def simulate():
     try:
@@ -46,7 +56,7 @@ def simulate():
             'picked_winner': picked_winner,
             'playstyle': playstyle,
             'boldness': boldness,
-            'results': simulated_bracket.head().to_dict(orient='records')
+            'results': simulated_bracket[['team_1', 'team_2', 'winner', 'prediction']].head().to_dict(orient='records')
         })
     except Exception as e:
         print("Error", str(e))

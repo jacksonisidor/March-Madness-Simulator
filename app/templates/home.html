@@ -10,13 +10,40 @@
     <p>Enter your preferences below to simulate a bracket:</p>
 
     </form>
-        <!-- Year Input (enter) -->
+        <!-- Year Input (enter/arrows) -->
         <label for="year">Year:</label>
-        <input type="number" id="year" name="year" min="2008" max="2024" required><br><br>
+        <input type="number" id="year" name="year" min="2008" max="2024" value="{{ max_year }}" required onchange="updateTeams()"><br><br>
 
-        <!-- Picked Winner Input (enter) -->
-        <label for="pickedWinner">Picked Winner:</label>
-        <input type="text" id="picked_winner" name="picked_winner" required><br><br>
+        <!-- Picked Winner Input (dropdown, updated dynamically basied on year) -->
+        <label for="picked_winner">Picked Winner:</label>
+        <select id="picked_winner" name="picked_winner">
+            <option value="None" selected>None</option> <!-- Default -->
+        </select><br><br>
+
+        <script>
+            async function updateTeams() {
+                const year = document.getElementById('year').value;
+                const teamDropdown = document.getElementById('picked_winner');
+
+                // get teams for the selected year
+                const response = await fetch(`/get_teams/${year}`);
+                const teams = await response.json();
+
+                // clear current dropdown options
+                teamDropdown.innerHTML = "";
+
+                // fill in the new options
+                teams.forEach(team => {
+                    const option = document.createElement("option");
+                    option.value = team;
+                    option.textContent = team;
+                    teamDropdown.appendChild(option);
+                });
+            }
+
+            // load teams when the page first loads (for the default year)
+            window.onload = updateTeams;
+        </script>
 
         <!-- Playstyle Input (dropdown) -->
         <label for="playstyle">Playstyle:</label>
@@ -31,7 +58,7 @@
         <select id="boldness" name="boldness">
             <option value="Go Big or Go Home">Go Big or Go Home</option>
             <option value="Bold">Bold</option>
-            <option value="Normal">Normal</option>
+            <option value="Normal" selected>Normal</option>
             <option value="Safe">Safe</option>
             <option value="So Safe">So Safe</option>
         </select><br><br>
