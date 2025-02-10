@@ -83,7 +83,7 @@ class BracketSimulator:
             predictors = [
                         'badj_d_diff', 'efg_d_diff', 'ft_rate_d_diff', 'tov_percent_d_diff', 
                         'adj_tempo_diff', '3p_percent_d_diff', '2p_percent_d_diff', 
-                        'elite_sos'
+                        'elite_sos_diff'
                         ]
         
         else:
@@ -138,11 +138,11 @@ class BracketSimulator:
             threshold_lower_seed = 0.63
 
         # if seed 1 is the higher seed (underdog)
-        matchups.loc[matchups["seed_1"] > matchups["seed_2"], "prediction"] = (matchups["win probability"] > threshold_lower_seed)
+        matchups.loc[matchups["seed_1"] > matchups["seed_2"], "prediction"] = (matchups["win probability"] > threshold_lower_seed)*1
         # if seed 1 is the lower seed (favorite)
-        matchups.loc[matchups["seed_1"] < matchups["seed_2"], "prediction"] = (matchups["win probability"] > threshold_higher_seed)
+        matchups.loc[matchups["seed_1"] < matchups["seed_2"], "prediction"] = (matchups["win probability"] > threshold_higher_seed)*1
         # if seed 1 and seed 2 are the same seed
-        matchups.loc[matchups["seed_1"] == matchups["seed_2"], "prediction"] = (matchups["win probability"] > 0.5)
+        matchups.loc[matchups["seed_1"] == matchups["seed_2"], "prediction"] = (matchups["win probability"] > 0.5)*1
 
 
         # force the user-picked winner to advance (1 if they are team_1, 0 if they are team_2 to match input data)
@@ -244,7 +244,8 @@ class BracketSimulator:
         stat_variables = [
                         'badj_em', 'badj_o', 'badj_d', 'wab', 'barthag', 'efg', 'efg_d', 
                         'ft_rate', 'ft_rate_d', 'tov_percent', 'tov_percent_d', 'adj_tempo', 
-                        '3p_percent', '3p_rate', '2p_percent', 'exp', 'eff_hgt', 'talent', 
+                        '3p_percent', '3p_rate', '2p_percent', '3p_percent_d', '2p_percent_d',
+                        'exp', 'eff_hgt', 'talent', 
                         'elite_sos', 'win_percent'
                         ]
         for variable in stat_variables:
