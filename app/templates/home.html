@@ -29,7 +29,7 @@
 
     <!-- Add covid note about years -->
     <div class="covid-note">
-        <p>Note: The 2020 tournament was canceled and 2021 has missing data due to COVID</p>
+        <p>Note: The 2020 tournament was canceled and 2021 has missing data (both due to COVID)</p>
     </div>
 
     <!-- Picked Winner Input (dropdown, updated dynamically basied on year) -->
@@ -87,36 +87,47 @@
     <p id="loadingMessage" style="display: none;">Simulating... Please wait.</p>
 
     <script>
-
-        // JavaScript to send inputs to the backend 
+        // send results to the backend
         async function runSimulation() {
-            // retrieve user inputs
+            // Show the loading message
+            const loadingMessage = document.getElementById("loadingMessage");
+            loadingMessage.style.display = "block";
+            loadingMessage.textContent = "Simulating... Please wait.";
+    
+            // Retrieve user inputs
             const year = document.getElementById('year').value;
             const picked_winner = document.getElementById('picked_winner').value;
             const playstyle = document.getElementById('playstyle').value;
             const boldness = document.getElementById('boldness').value;
             
-            // send inputs to the backend
-            const response = await fetch('/simulate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    year: parseInt(year, 10),
-                    picked_winner: picked_winner,
-                    playstyle: playstyle,
-                    boldness: boldness
-                })
-            });
-
-            // Redirect when simulation is ready
-            const result = await response.json();
-            if (result.redirect_url) {
-                window.location.href = result.redirect_url; 
-            } else {
-                document.getElementById("loadingMessage").textContent = "Error: Simulation failed.";
+            try {
+                // Send inputs to the backend
+                const response = await fetch('/simulate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        year: parseInt(year, 10),
+                        picked_winner: picked_winner,
+                        playstyle: playstyle,
+                        boldness: boldness
+                    })
+                });
+    
+                // Get response
+                const result = await response.json();
+    
+                // Redirect when simulation is ready
+                if (result.redirect_url) {
+                    window.location.href = result.redirect_url; 
+                } else {
+                    loadingMessage.textContent = "Error: Simulation failed.";
+                }
+            } catch (error) {
+                loadingMessage.textContent = "Error: Something went wrong.";
             }
         }
     </script>
+    
 
 </body>
 </html>
