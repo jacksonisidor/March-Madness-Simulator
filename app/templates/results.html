@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation Results</title>
+    <style>
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            font-size: 18px;
+            color: #007BFF;
+            text-decoration: none;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .back-button:hover {
+            text-decoration: underline;
+        }
+
+        .arrow {
+            font-size: 22px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Back Button -->
+    <a href="/" class="back-button">
+        <span class="arrow">←</span> Run Another Simulation
+    </a>
+
+    <h1>Simulation Results</h1>
+
+    <h2>Selected Parameters</h2>
+    <ul>
+        <li>Year: {{ selected_params.year }}</li>
+        <li>Picked Winner: {{ selected_params.picked_winner }}</li>
+        <li>Playstyle: {{ selected_params.playstyle }}</li>
+        <li>Boldness: {{ selected_params.boldness }}</li>
+    </ul>
+
+    <h2>Bracket Results</h2>
+    {% if results %}
+        <table border="1">
+            <tr>
+                <th>Team 1</th>
+                <th>Team 2</th>
+                <th>Prediction</th>
+            </tr>
+            {% for row in results %}
+            <tr>
+                <td>{{ row.team_1 }}</td>
+                <td>{{ row.team_2 }}</td>
+                <td>{{ row.prediction }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No results available.</p>
+    {% endif %}
+
+    <h2>Bracket Score</h2>
+    {% if score %}
+        <p>Your bracket scored: <strong>{{ score }} points</strong></p>
+    {% else %}
+        <p>No score available.</p>
+    {% endif %}
+</body>
+</html>
