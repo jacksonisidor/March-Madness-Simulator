@@ -4,75 +4,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>March Madness Simulator</title>
+    <style>
+        .covid-note {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 14px;
+            color: #ff0000;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <h1>Welcome to the March Madness Simulator</h1>
     <p>Enter your preferences below to simulate a bracket:</p>
 
-    </form>
-        <!-- Year Input (enter/arrows) -->
-        <label for="year">Year:</label>
-        <input type="number" id="year" name="year" min="2008" max="2024" value="{{ max_year }}" required onchange="updateTeams()"><br><br>
+    <!-- Year Selection -->
+    <label for="year">Year:</label>
+    <select id="year" name="year">
+        {% for year in valid_years %}
+            <option value="{{ year }}" {% if year == max_year %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+    </select><br><br>
 
-        <!-- Picked Winner Input (dropdown, updated dynamically basied on year) -->
-        <label for="picked_winner">Picked Winner:</label>
-        <select id="picked_winner" name="picked_winner">
-            <option value="None" selected>None</option> <!-- Default -->
-        </select><br><br>
+    <!-- Add covid note about years -->
+    <div class="covid-note">
+        <p>Note: The 2020 tournament was canceled and 2021 has missing data due to COVID</p>
+    </div>
 
-        <script>
-            async function updateTeams() {
-                const year = document.getElementById('year').value;
-                const teamDropdown = document.getElementById('picked_winner');
-
-                // get teams for the selected year
-                const response = await fetch(`/get_teams/${year}`);
-                const teams = await response.json();
-
-                // clear current dropdown options
-                teamDropdown.innerHTML = "";
-
-                // fill in the new options
-                teams.forEach(team => {
-                    const option = document.createElement("option");
-                    option.value = team;
-                    option.textContent = team;
-                    teamDropdown.appendChild(option);
-                });
-            }
-
-            // load teams when the page first loads (for the default year)
-            window.onload = updateTeams;
-        </script>
-
-        <!-- Playstyle Input (dropdown) -->
-        <label for="playstyle">Playstyle:</label>
-        <select id="playstyle" name="playstyle">
-            <option value="Balanced">Balanced</option>
-            <option value="I Love Offense">I Love Offense</option>
-            <option value="Defense Wins Championships">Defense Wins Championships</option>
-        </select><br><br>
-
-        <!-- Boldness Input (dropdown) -->
-        <label for="boldness">Boldness:</label>
-        <select id="boldness" name="boldness">
-            <option value="Go Big or Go Home">Go Big or Go Home</option>
-            <option value="Bold">Bold</option>
-            <option value="Normal" selected>Normal</option>
-            <option value="Safe">Safe</option>
-            <option value="So Safe">So Safe</option>
-        </select><br><br>
-
-        <!-- Submit Button -->
-        <button type="button" onclick="runSimulation()">Simulate</button>
-    </form>
-
-    <!-- Placeholder for results -->
-    <div id="results"></div>
+    <!-- Picked Winner Input (dropdown, updated dynamically basied on year) -->
+    <label for="picked_winner">Picked Winner:</label>
+    <select id="picked_winner" name="picked_winner">
+        <option value="None" selected>None</option> <!-- Default -->
+    </select><br><br>
 
     <script>
+        async function updateTeams() {
+            const year = document.getElementById('year').value;
+            const teamDropdown = document.getElementById('picked_winner');
 
-        console.log("JavaScript is running!");
+            // get teams for the selected year
+            const response = await fetch(`/get_teams/${year}`);
+            const teams = await response.json();
+
+            // clear current dropdown options
+            teamDropdown.innerHTML = "";
+
+            // fill in the new options
+            teams.forEach(team => {
+                const option = document.createElement("option");
+                option.value = team;
+                option.textContent = team;
+                teamDropdown.appendChild(option);
+            });
+        }
+
+        // load teams when the page first loads (for the default year)
+        window.onload = updateTeams;
+    </script>
+
+    <!-- Playstyle Input (dropdown) -->
+    <label for="playstyle">Playstyle:</label>
+    <select id="playstyle" name="playstyle">
+        <option value="Balanced">Balanced</option>
+        <option value="I Love Offense">I Love Offense</option>
+        <option value="Defense Wins Championships">Defense Wins Championships</option>
+    </select><br><br>
+
+    <!-- Boldness Input (dropdown) -->
+    <label for="boldness">Boldness:</label>
+    <select id="boldness" name="boldness">
+        <option value="Go Big or Go Home">Go Big or Go Home</option>
+        <option value="Bold">Bold</option>
+        <option value="Normal" selected>Normal</option>
+        <option value="Safe">Safe</option>
+        <option value="So Safe">So Safe</option>
+    </select><br><br>
+
+    <!-- Submit Button -->
+    <button type="button" onclick="runSimulation()">Simulate</button>
+
+    <p id="loadingMessage" style="display: none;">Simulating... Please wait.</p>
+
+    <script>
 
         // JavaScript to send inputs to the backend 
         async function runSimulation() {
@@ -81,8 +95,6 @@
             const picked_winner = document.getElementById('picked_winner').value;
             const playstyle = document.getElementById('playstyle').value;
             const boldness = document.getElementById('boldness').value;
-
-            console.log("User Inputs:", { year, picked_winner, playstyle, boldness });
             
             // send inputs to the backend
             const response = await fetch('/simulate', {
@@ -96,21 +108,15 @@
                 })
             });
 
-            console.log("Response Status:", response.status);
-
-            // get json response
+            // Redirect when simulation is ready
             const result = await response.json();
-
-            console.log("Response Data:", result);
-
-            // display the results
-            const resultsDiv = document.getElementById('results');
-            if (result.status === 'success') {
-                resultsDiv.innerHTML = `<h2>Simulation Results</h2><pre>${JSON.stringify(result.results, null, 2)}</pre>`;
+            if (result.redirect_url) {
+                window.location.href = result.redirect_url; 
             } else {
-                resultsDiv.innerHTML = `<h2>Error</h2><p>${result.message}</p>`;
+                document.getElementById("loadingMessage").textContent = "Error: Simulation failed.";
             }
         }
     </script>
+
 </body>
 </html>

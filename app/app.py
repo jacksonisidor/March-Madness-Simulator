@@ -1,20 +1,21 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import pandas as pd
 from models.bracket_model import BracketSimulator
 
 # Initialize the Flask app
 app = Flask(__name__)
+app.secret_key = 'BBallSim'
 
 # Read in data
 data = pd.read_parquet("data/all_matchup_stats.parquet")
-
-print('RETRIEVED GAME DATA')
 
 # Route for the home page
 @app.route('/')
 def home():
     max_year = data["year"].max()
-    return render_template('home.html', max_year=max_year)
+    valid_years = sorted(data["year"].unique()) 
+    valid_years = [year for year in valid_years if year not in [2020, 2021]] 
+    return render_template('home.html', max_year=max_year, valid_years=valid_years)
 
 # Route to team list for a given year
 @app.route('/get_teams/<int:year>')
@@ -32,39 +33,41 @@ def simulate():
         # get the json input from the request
         input_data = request.json
 
-        print("RETRIEVED INPUT DATA")
-
         # extract the selected parameters for the simulation (with default values)
         year = input_data.get('year', 2024)
         picked_winner = input_data.get('picked_winner')
         playstyle = input_data.get('playstyle', 'Balanced')
         boldness = input_data.get('boldness', 'Normal')
 
-        print("EXTRACTED PARAMETERS")
-
         # initialize and run the simulator
         simulator = BracketSimulator(data, year, picked_winner, playstyle, boldness)
-        simulated_bracket = simulator.sim_bracket()
+        simulator.sim_bracket()
+        predictions = simulator.predicted_bracket
+        score = simulator.score_bracket()
 
-        print("SIMULATED BRACKET")
+        # Store results in session
+        session['selected_params'] = input_data
+        session['simulation_results'] = predictions[['team_1', 'team_2', 'winner', 'prediction']].to_dict(orient='records')
+        session['score'] = score
 
-        # return a placeholder response for now
-        return jsonify({
-            'status': 'success',
-            'message': 'Simulation is running...',
-            'year': year,
-            'picked_winner': picked_winner,
-            'playstyle': playstyle,
-            'boldness': boldness,
-            'results': simulated_bracket[['team_1', 'team_2', 'winner', 'prediction']].head().to_dict(orient='records')
-        })
+        # Redirect to results page after processing
+        return jsonify({'redirect_url': url_for('results')})
+    
     except Exception as e:
         print("Error", str(e))
         return jsonify({
             'status': 'error',
             'message': str(e)
         }), 500
-           
+
+# Route for the results page
+@app.route('/results')
+def results():
+    selected_params = session.get('selected_params')
+    results = session.get('simulation_results')
+    score = session.get('score')
+    return render_template('results.html', selected_params=selected_params, 
+                           results=results, score=score)
 
 # Run the app
 if __name__ == '__main__':
