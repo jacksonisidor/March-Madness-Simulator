@@ -29,10 +29,10 @@ class BracketSimulator:
         for (pred_index, pred_matchup), (act_index, act_matchup) in zip(predicted.iterrows(), actual.iterrows()):
             
             if (pred_matchup["team_1"] == act_matchup["team_1"]) and (pred_matchup["prediction"] == act_matchup["winner"] == 1):
-                score += 64 / pred_matchup["current_round"]
+                score += (64 / pred_matchup["current_round"]) * 10
                 
             elif (pred_matchup["team_2"] == act_matchup["team_2"]) and (pred_matchup["prediction"] == act_matchup["winner"] == 0): 
-                score += 64 / pred_matchup["current_round"]
+                score += (64 / pred_matchup["current_round"]) * 10
                 
         return int(score)
 
