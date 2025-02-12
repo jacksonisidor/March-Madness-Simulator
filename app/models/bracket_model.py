@@ -39,6 +39,7 @@ class BracketSimulator:
         
     def sim_bracket(self, current_matchups=None, model=None, predictors=None):
 
+        # get round of 64 at the start
         if current_matchups is None:
 
             # get the data we need to predict for the first round
@@ -51,9 +52,11 @@ class BracketSimulator:
 
         # Only train model if it hasn't been trained yet
         if model is None:
-            training_data = data[
-                (data["year"] != self.year) | 
-                ((data["year"] == self.year) & (data["type"] != "T"))
+
+            # get all data that was not in this years tournament
+            training_data = self.data[
+                (self.data["year"] != self.year) | 
+                ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
             model, predictors = self.train_model(training_data)
 
@@ -228,10 +231,8 @@ class BracketSimulator:
 
 
 # FOR TESTING
-'''
-data = pd.read_parquet("data/all_matchup_stats.parquet")
-data['close_call_1'] = False
-data['close_call_2'] = False
+
+'''data = pd.read_parquet("data/all_matchup_stats.parquet")
 simulator = BracketSimulator(data, 2024)
 simulator.sim_bracket()
 print(simulator.score_bracket())

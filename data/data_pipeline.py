@@ -337,6 +337,9 @@ for variable in stat_variables:
 # Concatenate the stat difference DataFrame with the existing DataFrame
 all_matchup_stats = pd.concat([all_matchup_stats, stat_diff_df], axis=1)
 
+# Add close call flags (only used for simulation strategy)
+all_matchup_stats['close_call_1'] = False
+all_matchup_stats['close_call_2'] = False
 
 # EXPORT DF
 directory = "data"
