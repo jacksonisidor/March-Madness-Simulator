@@ -37,19 +37,25 @@ class BracketSimulator:
         return int(score)
 
         
-    def sim_bracket(self, current_matchups=None):
+    def sim_bracket(self, current_matchups=None, model=None, predictors=None):
+
         if current_matchups is None:
+
+            # get the data we need to predict for the first round
             current_matchups = self.data[
                 (self.data["year"] == self.year) & 
                 (self.data["type"] == "T") & 
                 (self.data["current_round"] == 64)
-            ]
+            ].copy()
 
-        training_data = self.data[
-            (self.data["year"] != self.year) | 
-            ((self.data["year"] == self.year) & (self.data["type"] != "T"))
-        ]
-        model, predictors = self.train_model(training_data)
+
+        # Only train model if it hasn't been trained yet
+        if model is None:
+            training_data = data[
+                (data["year"] != self.year) | 
+                ((data["year"] == self.year) & (data["type"] != "T"))
+            ]
+            model, predictors = self.train_model(training_data)
 
         predictions = self.predict_games(model, current_matchups, predictors)
 
@@ -62,7 +68,7 @@ class BracketSimulator:
         next_round_matchups = self.next_sim_matchups(next_round_teams)
 
         # Recursively simulate remaining rounds
-        self.sim_bracket(next_round_matchups)
+        self.sim_bracket(next_round_matchups, model, predictors)
 
         # After recursion, assign full bracket to `self.predicted_bracket`
         self.predicted_bracket = pd.concat([predictions, self.predicted_bracket], ignore_index=True)
@@ -72,14 +78,14 @@ class BracketSimulator:
     def train_model(self, training_data):
         
         # set predictors based on the the user's selected playstyle
-        if self.playstyle == "I Love Offense":
+        if self.playstyle == "Offensive-Minded":
             predictors = [
                         'badj_o_diff', 'efg_diff', 'ft_rate_diff', 'tov_percent_diff', 
                         'adj_tempo_diff', '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 
                         'elite_sos_diff'
                         ]
         
-        elif self.playstyle == "Defense Wins Championships":
+        elif self.playstyle == "Defense Wins":
             predictors = [
                         'badj_d_diff', 'efg_d_diff', 'ft_rate_d_diff', 'tov_percent_d_diff', 
                         'adj_tempo_diff', '3p_percent_d_diff', '2p_percent_d_diff', 
@@ -88,20 +94,21 @@ class BracketSimulator:
         
         else:
             predictors = [
-                        'badj_em_diff', 'badj_o_diff', 'badj_d_diff', 'wab_diff', 'barthag_diff',
-                        'efg_diff', 'efg_d_diff', 'ft_rate_diff', 'ft_rate_d_diff', 
-                        'tov_percent_diff', 'tov_percent_d_diff', 'adj_tempo_diff', 
-                        '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 'exp_diff', 
-                        'eff_hgt_diff', 'talent_diff', 'elite_sos_diff', 'win_percent_diff'
-                        ]
+                            'badj_em_diff', 'badj_o_diff', 'badj_d_diff', 'wab_diff', 'barthag_diff',
+                            'efg_diff', 'efg_d_diff', 'ft_rate_diff', 'ft_rate_d_diff', 
+                            'tov_percent_diff', 'tov_percent_d_diff', 'adj_tempo_diff', 
+                            '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 'exp_diff', 
+                            'eff_hgt_diff', 'talent_diff', 'elite_sos_diff', 'win_percent_diff'
+                            ]
 
         xgb_pipeline = make_pipeline(StandardScaler(), 
-                                    XGBClassifier(n_estimators=300,
-                                    max_depth=7,
+                                    XGBClassifier(n_estimators=100,
+                                    max_depth=5,
                                     learning_rate=0.2,
-                                    subsample=0.8,
-                                    colsample_bytree=1.0,
-                                    gamma=0
+                                    subsample=0.9,
+                                    colsample_bytree=1,
+                                    gamma=5,
+                                    random_state=44
                                     ))
 
         xgb_pipeline.fit(training_data[predictors], training_data["winner"])
@@ -111,13 +118,15 @@ class BracketSimulator:
 
     def predict_games(self, model, matchups, predictors):
 
+        matchups = matchups.copy()
+
         # get win probabilities (value represents probability of team_1 winning)
         probs = model.predict_proba(matchups[predictors])
-        matchups["win probability"] = probs[:, 1]
+        matchups.loc[:, "win probability"] = probs[:, 1]
 
         # add a little normally distributed randomness for fun :)
-        randomness = np.random.normal(0, 0.025)
-        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
+        #randomness = np.random.normal(0, 0.025)
+        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
@@ -144,6 +153,15 @@ class BracketSimulator:
         # if seed 1 and seed 2 are the same seed
         matchups.loc[matchups["seed_1"] == matchups["seed_2"], "prediction"] = (matchups["win probability"] > 0.5)*1
 
+        # apply close call strategy
+        matchups.loc[matchups["close_call_1"] & ~matchups["close_call_2"], "prediction"] = 0  
+        matchups.loc[matchups["close_call_2"] & ~matchups["close_call_1"], "prediction"] = 1 
+
+        # note close calls for the next round
+        close_thresh = 0.1
+        matchups.loc[:, "close_call_1"] = (matchups["win probability"] >= 0.5 - close_thresh) & (matchups["win probability"] <= 0.5 + close_thresh)  
+        matchups.loc[:, "close_call_2"] = (1 - matchups["win probability"] >= 0.5 - close_thresh) & (1 - matchups["win probability"] <= 0.5 + close_thresh)
+
 
         # force the user-picked winner to advance (1 if they are team_1, 0 if they are team_2 to match input data)
         matchups.loc[matchups["team_1"] == self.picked_winner, "prediction"] = 1
@@ -153,107 +171,68 @@ class BracketSimulator:
 
 
     def get_winner_info(self, matchups):
-        next_round_teams_list = []
-        
-        for index, matchup in matchups.iterrows():
-            # if team_1 wins, get all info that ends in "_1"
-            if matchup["prediction"] == 1:
-                winning_team_info = matchup.filter(regex='_1$').rename(lambda x: x[:-2], axis=0)
-            # if team_2 wins, get all info that ends in "_2" 
-            else:
-                winning_team_info = matchup.filter(regex='_2$').rename(lambda x: x[:-2], axis=0)
-            
-            winning_team_info["year"] = matchup["year"]
-            winning_team_info["current_round"] = matchup["current_round"] / 2
-            
-            next_round_teams_list.append(pd.DataFrame(winning_team_info).T)
-        
-        next_round_teams = pd.concat(next_round_teams_list, ignore_index=True)
-            
+
+        # identify winners
+        winner_mask = matchups["prediction"].to_numpy() 
+
+        # select columns based on the winner
+        winner_data_1 = matchups.filter(regex='_1$')
+        winner_data_2 = matchups.filter(regex='_2$')
+
+        # get the winning data based on who won
+        winning_data = np.where(winner_mask[:, None], winner_data_1.values, winner_data_2.values)
+
+        # create df
+        next_round_teams = pd.DataFrame(winning_data, columns=[col[:-2] for col in winner_data_1.columns])
+
+        # add `year` and `current_round` 
+        next_round_teams["year"] = matchups["year"].values
+        next_round_teams["current_round"] = matchups["current_round"].values / 2
+
         return next_round_teams
 
+
     def next_sim_matchups(self, winning_teams):
-        matchups = pd.DataFrame(columns=['year', 'team_1', 'seed_1', 'round_1', 'current_round', 'team_2', 'seed_2', 'round_2'])
 
-        matchup_info_list = []
-        # iterate through data frame and jump 2 each iteration
-        for i in range(0, len(winning_teams)-1, 2):
-            team1_info = winning_teams.iloc[i]
-            team2_info = winning_teams.iloc[i+1]
+        # select alternating rows for team1 and team2
+        team1 = winning_teams.iloc[::2].reset_index(drop=True)
+        team2 = winning_teams.iloc[1::2].reset_index(drop=True)
 
-            matchup_info = {
-                    'year': team1_info['year'],
-                    'team_1': team1_info['team'],
-                    'seed_1': team1_info['seed'],
-                    'round_1': team1_info['round'],
-                    'current_round': team1_info['current_round'],
-                    'team_2': team2_info['team'],
-                    'seed_2': team2_info['seed'],
-                    'round_2': team2_info['round'],
-                    'badj_em_1': team1_info['badj_em'],
-                    'badj_o_1': team1_info['badj_o'],
-                    'badj_d_1': team1_info['badj_d'],
-                    'wab_1': team1_info['wab'],
-                    'barthag_1': team1_info['barthag'],
-                    'efg_1': team1_info['efg'],
-                    'efg_d_1': team1_info['efg_d'],
-                    'ft_rate_1': team1_info['ft_rate'],
-                    'ft_rate_d_1': team1_info['ft_rate_d'],
-                    'tov_percent_1': team1_info['tov_percent'],
-                    'tov_percent_d_1': team1_info['tov_percent_d'],
-                    'adj_tempo_1': team1_info['adj_tempo'],
-                    '3p_percent_1': team1_info['3p_percent'],
-                    '3p_rate_1': team1_info['3p_rate'],
-                    '2p_percent_1': team1_info['2p_percent'],
-                    '3p_percent_d_1': team1_info['2p_percent_d'],
-                    '2p_percent_d_1': team1_info['2p_percent_d'],
-                    'exp_1': team1_info['exp'],
-                    'eff_hgt_1': team1_info['eff_hgt'],
-                    'talent_1' : team1_info['talent'],
-                    'elite_sos_1': team1_info['elite_sos'],
-                    'win_percent_1': team1_info['win_percent'],
-                    'badj_em_2': team2_info['badj_em'],
-                    'badj_o_2': team2_info['badj_o'],
-                    'badj_d_2': team2_info['badj_d'],
-                    'wab_2': team2_info['wab'],
-                    'barthag_2': team2_info['barthag'],
-                    'efg_2': team2_info['efg'],
-                    'efg_d_2': team2_info['efg_d'],
-                    'ft_rate_2': team2_info['ft_rate'],
-                    'ft_rate_d_2': team2_info['ft_rate_d'],
-                    'tov_percent_2': team2_info['tov_percent'],
-                    'tov_percent_d_2': team2_info['tov_percent_d'],
-                    'adj_tempo_2': team2_info['adj_tempo'],
-                    '3p_percent_2': team2_info['3p_percent'],
-                    '3p_rate_2': team2_info['3p_rate'],
-                    '2p_percent_2': team2_info['2p_percent'],
-                    '3p_percent_d_2': team2_info['3p_percent_d'],
-                    '2p_percent_d_2': team2_info['2p_percent_d'],
-                    'exp_2': team2_info['exp'],
-                    'eff_hgt_2': team2_info['eff_hgt'],
-                    'talent_2' : team2_info['talent'],
-                    'elite_sos_2': team2_info['elite_sos'],
-                    'win_percent_2': team2_info['win_percent']
-                    }
-    
-            matchup_info_list.append(matchup_info)
+        # create matchups DF with all non-predictors
+        matchups = pd.DataFrame({
+            'year': team1['year'],
+            'team_1': team1['team'],
+            'seed_1': team1['seed'],
+            'round_1': team1['round'],
+            'current_round': team1['current_round'],
+            'team_2': team2['team'],
+            'seed_2': team2['seed'],
+            'round_2': team2['round'],
+            'close_call_1': team1['close_call'],
+            'close_call_2': team2['close_call']
+        })
 
-        matchups = pd.concat([matchups, pd.DataFrame(matchup_info_list)])
-            
-        # get the stat differences same as before
+        # add stat columns (team 1, team 2, and difference)
         stat_variables = [
-                        'badj_em', 'badj_o', 'badj_d', 'wab', 'barthag', 'efg', 'efg_d', 
-                        'ft_rate', 'ft_rate_d', 'tov_percent', 'tov_percent_d', 'adj_tempo', 
-                        '3p_percent', '3p_rate', '2p_percent', '3p_percent_d', '2p_percent_d',
-                        'exp', 'eff_hgt', 'talent', 
-                        'elite_sos', 'win_percent'
-                        ]
-        for variable in stat_variables:
-            matchups[f'{variable}_diff'] = matchups[f'{variable}_1'] - matchups[f'{variable}_2']
-            
+            'badj_em', 'badj_o', 'badj_d', 'wab', 'barthag', 'efg', 'efg_d',
+            'ft_rate', 'ft_rate_d', 'tov_percent', 'tov_percent_d', 'adj_tempo',
+            '3p_percent', '3p_rate', '2p_percent', '3p_percent_d', '2p_percent_d',
+            'exp', 'eff_hgt', 'talent', 'elite_sos', 'win_percent'
+        ]
+        for var in stat_variables:
+            matchups[f'{var}_1'] = team1[var].values
+            matchups[f'{var}_2'] = team2[var].values
+            matchups[f'{var}_diff'] = team1[var].values - team2[var].values  # Vectorized subtraction
+
         return matchups
 
+
+# FOR TESTING
+'''
 data = pd.read_parquet("data/all_matchup_stats.parquet")
-sim = BracketSimulator(data, 2019)
-sim.sim_bracket()
-print(sim.score_bracket())
+data['close_call_1'] = False
+data['close_call_2'] = False
+simulator = BracketSimulator(data, 2024)
+simulator.sim_bracket()
+print(simulator.score_bracket())
+'''
