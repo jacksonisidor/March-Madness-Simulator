@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import pandas as pd
+from scipy.stats import percentileofscore
 from models.bracket_model import BracketSimulator
 
 # Initialize the Flask app
@@ -8,6 +9,15 @@ app.secret_key = 'BBallSim'
 
 # Read in data
 data = pd.read_parquet("data/all_matchup_stats.parquet")
+odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet")
+
+# function to get correct suffix of percentile
+def ordinal(n):
+    if 10 <= n % 100 <= 20:  # Special case for 11th-19th
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
 
 # Route for the home page
 @app.route('/')
@@ -45,10 +55,14 @@ def simulate():
         predictions = simulator.predicted_bracket
         score = simulator.score_bracket()
 
+        year_scores = odds_sim_scores[odds_sim_scores["year"] == year]["score"]
+        percentile = ordinal(int(percentileofscore(year_scores, score, kind='rank')))
+
         # Store results in session
         session['selected_params'] = input_data
         session['simulation_results'] = predictions[['team_1', 'team_2', 'winner', 'prediction']].to_dict(orient='records')
         session['score'] = score
+        session['percentile'] = percentile
 
         # Redirect to results page after processing
         return jsonify({'redirect_url': url_for('results')})
@@ -66,8 +80,9 @@ def results():
     selected_params = session.get('selected_params')
     results = session.get('simulation_results')
     score = session.get('score')
+    percentile = session.get('percentile')
     return render_template('results.html', selected_params=selected_params, 
-                           results=results, score=score)
+                           results=results, score=score, percentile=percentile)
 
 # Run the app
 if __name__ == '__main__':

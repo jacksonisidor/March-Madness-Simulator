@@ -68,5 +68,12 @@
     {% else %}
         <p>No score available.</p>
     {% endif %}
+
+    <h2>Percentile Rank</h2>
+    {% if percentile %}
+        <p>Your bracket is in the <strong>{{ percentile }}</strong> percentile.</p>
+    {% else %}
+        <p>No score available.</p>
+    {% endif %}
 </body>
 </html>
