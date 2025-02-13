@@ -3,3 +3,4 @@ test.ipynb
 app/models/__pycache__/__init__.cpython-310.pyc
 app/models/__pycache__/bracket_model.cpython-310.pyc
 app/__pycache__/app.cpython-310.pyc
+app/models/__pycache__/bracket_model.cpython-310.pyc
