@@ -62,7 +62,7 @@ class BracketSimulator:
 
         predictions = self.predict_games(model, current_matchups, predictors)
 
-        # Base case: Assign `self.predicted_bracket` and stop recursion
+        # Base case: Reached championship, no more rounds
         if predictions["current_round"].iloc[0] == 2:
             self.predicted_bracket = predictions
             return  
@@ -73,7 +73,7 @@ class BracketSimulator:
         # Recursively simulate remaining rounds
         self.sim_bracket(next_round_matchups, model, predictors)
 
-        # After recursion, assign full bracket to `self.predicted_bracket`
+        # After recursion, assign full bracket
         self.predicted_bracket = pd.concat([predictions, self.predicted_bracket], ignore_index=True)
 
     
@@ -188,7 +188,7 @@ class BracketSimulator:
         # create df
         next_round_teams = pd.DataFrame(winning_data, columns=[col[:-2] for col in winner_data_1.columns])
 
-        # add `year` and `current_round` 
+        # add year and current_round
         next_round_teams["year"] = matchups["year"].values
         next_round_teams["current_round"] = matchups["current_round"].values / 2
 
