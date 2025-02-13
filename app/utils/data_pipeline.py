@@ -24,7 +24,7 @@ years = range(2008, 2025)
 years = [year for year in years if year != 2020]
 for year in years:
 
-    # url of webpage containing data
+    # url of webpage containing data (type=R FOR REGULAR SEASON STATS ONLY, no data leakage)
     url = f'https://barttorvik.com/team-tables_each.php?tvalue=All&year={year}&sort=&t2value=None&oppType=All&conlimit=All&top=0&quad=4&mingames=0&toprk=0&venue=All&type=R&yax=3'
 
     # load the webpage using selenium driver and chrome
