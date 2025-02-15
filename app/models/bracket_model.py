@@ -104,24 +104,24 @@ class BracketSimulator:
                             'eff_hgt_diff', 'talent_diff', 'elite_sos_diff', 'win_percent_diff'
                             ]
 
-        xgb_pipeline = make_pipeline(StandardScaler(), 
-                                    XGBClassifier(n_estimators=100,
+        model = XGBClassifier(n_estimators=100,
                                     max_depth=5,
                                     learning_rate=0.2,
                                     subsample=0.9,
                                     colsample_bytree=1,
                                     gamma=5,
                                     random_state=44
-                                    ))
+                                )
 
-        xgb_pipeline.fit(training_data[predictors], training_data["winner"])
+        model.fit(training_data[predictors], training_data["winner"])
 
-        return xgb_pipeline, predictors
+        return model, predictors
     
 
     def predict_games(self, model, matchups, predictors):
 
         matchups = matchups.copy()
+        matchups[predictors] = matchups[predictors].apply(pd.to_numeric, errors='coerce')
 
         # get win probabilities (value represents probability of team_1 winning)
         probs = model.predict_proba(matchups[predictors])
