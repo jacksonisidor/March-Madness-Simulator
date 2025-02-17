@@ -8,6 +8,8 @@ import pandas as pd
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
+print("STARTING")
+
 # PULL IN TEAM STATS
 # headers for the DataFrame taken from the website (the csv file does not download headers so i add them manually)
 headers = ['', 'TEAM', 'ADJ OE', 'ADJ DE', 'BARTHAG', 'RECORD', 'WINS', 'GAMES', 'EFG', 'EFG D.', 
@@ -79,7 +81,9 @@ for year in years:
     wab_stats["YEAR"] = year
     wabs.append(wab_stats)
 
-print("Pulled in stats")
+    print(f'Got all stats from {year}')
+
+print("Pulled in all stats")
 
 # concatenate the main stats DFs into a single DF
 combined_stats = pd.concat(dfs, ignore_index=True)
