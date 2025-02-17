@@ -113,7 +113,8 @@ class BracketSimulator:
                                     random_state=44
                                 )
 
-        model.fit(training_data[predictors], training_data["winner"])
+        training_data["weight"] = training_data["type"].map({"T": 1, "RS": 1})
+        model.fit(training_data[predictors], training_data["winner"], sample_weight=training_data["weight"])
 
         return model, predictors
     
