@@ -33,17 +33,10 @@
             margin: 20px 0;
         }
 
-        /* Style for input groups */
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-
         .input-group label {
             font-weight: bold;
             font-size: 18px;
+            margin-top: -30px;
             margin-bottom: 5px;
             text-align: center;
         }
@@ -54,8 +47,12 @@
             text-align: center;
             border-radius: 5px;
             border: 1px solid black;
-            width: 220px;
+            width: 170px;
+
+            /* Adjust centering to account for dropdown arrow */
+            text-indent: 10px;
         }
+
 
         .input-group select,
         .input-group input {
@@ -100,6 +97,91 @@
             margin-top: 10px;
             display: none;
         }
+
+        .param-note {
+            font-size: 16px;
+            font-style: italic;
+            color: #333; /* Dark gray */
+            text-align: center;
+            margin-top: 0px; 
+            max-width: 800px;
+        }
+
+        /* Ensure input group stays aligned */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+        }
+
+        /* Keep label & select in place */
+        .label-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin-bottom: -1px;
+            z-index: 2;
+        }
+
+        /* Wrap select and help icon together */
+        .select-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        /* Ensure help icon is positioned based on select box */
+        .help-icon {
+            font-size: 12px;
+            color: #1F4DA3; /* Blue */
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1px solid #1F4DA3;
+            text-align: center;
+            line-height: 14px;
+            font-weight: bold;
+            position: absolute;
+            right: -10px; /* Aligns to the right of the select box */
+            top: -60%;
+            transform: translateY(-50%);
+        }
+
+        /* Tooltip Styling */
+        .help-icon::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 5px;
+            white-space: nowrap;
+            bottom: 150%; /* Moves the tooltip above instead of below */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999; /* Ensure it's above all elements */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+            pointer-events: none;
+        }
+
+        /* Show tooltip on hover */
+        .help-icon:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+
+
     </style>
 </head>
 <body>
@@ -114,9 +196,13 @@
 
     <!-- Inputs Container -->
     <div class="input-container">
+
         <!-- Year Selection -->
         <div class="input-group">
-            <label for="year">Year</label>
+            <div class="label-container">
+                <label for="year">Year</label>
+                <span class="help-icon" data-tooltip="Pick a year to simulate">?</span>
+            </div>
             <select id="year" name="year">
                 {% for year in valid_years %}
                     <option value="{{ year }}" {% if year == max_year %}selected{% endif %}>{{ year }}</option>
@@ -126,7 +212,10 @@
 
         <!-- Picked Winner Selection -->
         <div class="input-group">
-            <label for="picked_winner">Favorite Team</label>
+            <div class="label-container">
+                <label for="picked_winner">Winning Team</label>
+                <span class="help-icon" data-tooltip="Pick a team to automatically win the tournament (optional)">?</span>
+            </div>
             <select id="picked_winner" name="picked_winner">
                 <option value="None" selected>None</option> <!-- Default -->
             </select>
@@ -134,7 +223,10 @@
 
         <!-- Playstyle Selection -->
         <div class="input-group">
-            <label for="playstyle">Playstyle</label>
+            <div class="label-container">
+                <label for="playstyle">Playstyle</label>
+                <span class="help-icon" data-tooltip="Pick what type of stats are used most when predicting (optional)">?</span>
+            </div>
             <select id="playstyle" name="playstyle">
                 <option value="Balanced" selected>Balanced</option>
                 <option value="Offensive-minded">Offensive-minded</option>
@@ -144,7 +236,10 @@
 
         <!-- Boldness Selection -->
         <div class="input-group">
-            <label for="boldness">Boldness</label>
+            <div class="label-container">
+                <label for="boldness">Boldness</label>
+                <span class="help-icon" data-tooltip="Pick how risky you want to be in picking upsets (optional)">?</span>
+            </div>
             <select id="boldness" name="boldness">
                 <option value="Go Big or Go Home">Go Big or Go Home</option>
                 <option value="Bold">Bold</option>
@@ -154,6 +249,10 @@
             </select>
         </div>
     </div>
+
+    <p class="param-note">
+        The default selections perform best on average, but certain years benefit from adjustments.
+    </p>
 
     <!-- Simulate Button -->
     <button class="simulate-button" onclick="runSimulation()">Simulate</button>
