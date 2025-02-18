@@ -16,87 +16,78 @@ odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet")
 def format_bracket(results):
 
     num_rounds = 7  # rounds from 64 teams to a single champion
-
-    # Initialize a list of empty lists for each round
     bracket_structure = [[] for _ in range(num_rounds)]
 
     for _, row in results.iterrows():
-        round_index = int(round((np.log2(64 / row['current_round']))))  # Convert to 0-5 index
+        round_index = int(round((np.log2(64 / row['current_round']))))  # convert to index
 
-        # Determine the actual winner
+        # determine the actual winner
         winner = 0 if row["prediction"] == 1 else 1  # 0 means team_1 won, 1 means team_2 won
 
-        # Store the matchup along with the winner index
+        # store the matchup along with the winner index
         matchup = [row['team_1'], row['team_2'], winner]
         bracket_structure[round_index].append(matchup)
 
-    # Extract the final winner from the last matchup
+    # extract the final winner from the last matchup
     final_game = results[results['current_round'] == 2].iloc[0]  
-    final_matchup = bracket_structure[-2][0]  # Get last game stored in bracket
+    final_matchup = bracket_structure[-2][0]  # get last game stored in bracket
     final_winner = final_matchup[0] if final_game['prediction'] == 1 else final_matchup[1]
 
-    # Add the final winner as the last round
-    bracket_structure[-1].append([final_winner, "", 0])  # No opponent, default winner
-
-    print(bracket_structure)  # Debugging output
+    # add the final winner as the last round
+    bracket_structure[-1].append([final_winner, "", 0])  # no opponent, default winner
 
     return bracket_structure
 
 
 # function to format for jquery
 def format_bracket_for_jquery_bracket(results):
-    """
-    Converts the bracket structure into jQuery Bracket's expected format.
-    Splits into top and bottom halves, Final Four, and the Championship.
-    """
-    num_matchups = len(results[0])  # Total matchups in the first round (32)
-    mid_point = num_matchups // 2   # Split point (16 per side)
 
-    # ✅ Separate Top and Bottom Brackets
+    num_matchups = len(results[0])  # total matchups in the first round (32)
+    mid_point = num_matchups // 2   # split point (16 per side)
+
+    # separate top and bottom brackets (will be right and left visually)
     top_teams = [[match[0], match[1]] for match in results[0][:mid_point]]
     bottom_teams = [[match[0], match[1]] for match in results[0][mid_point:]]
 
-    # ✅ Store results separately
+    # store results separately
     top_results = []
     bottom_results = []
 
-    ### **🔷 Process the Top Half**
-    advancing_top_teams = top_teams[:]  # Copy initial teams for tracking progression
-
-    for round_idx, round_matches in enumerate(results[:-2]):  # Exclude last 2 rounds
+    # process the top half
+    advancing_top_teams = top_teams[:]  # copy initial teams for tracking progression
+    for round_idx, round_matches in enumerate(results[:-2]):  # exclude last 2 rounds (jquery formatting stuff)
         top_round = []
-        next_advancing_top = []  # Track advancing teams for next round
+        next_advancing_top = []  # track advancing teams for next round
 
         for match in round_matches:
-            if len(match) == 3:  # Ensure match contains winner flag
+            if len(match) == 3:  # ensure match contains winner flag
                 winner = match[2]
                 top_round.append([1, 0] if winner == 0 else [0, 1])
-                next_advancing_top.append(match[winner])  # Store advancing team
+                next_advancing_top.append(match[winner])  # store advancing team
 
         advancing_top_teams = [next_advancing_top[i:i+2] for i in range(0, len(next_advancing_top), 2)]
         top_results.append(top_round)
 
-    ### **🔷 Process the Bottom Half (Fixed)**
-    advancing_bottom_teams = bottom_teams[:]  # Copy initial teams for tracking progression
-
-    for round_idx, round_matches in enumerate(results[:-2]):  # Exclude last 2 rounds
+    # process the bottom half (a little different because the reversal messed with everything)
+    advancing_bottom_teams = bottom_teams[:] 
+    for round_idx, round_matches in enumerate(results[:-2]):  # exclude last 2 rounds
         bottom_round = []
-        next_advancing_bottom = []  # Track advancing teams for next round
+        next_advancing_bottom = []  # track advancing teams for next round
 
         for match in round_matches:
-            if len(match) == 3:  # Ensure match contains winner flag
+            if len(match) == 3:  # ensure match contains winner flag
                 team_1, team_2, winner = match
                 if [team_1, team_2] in advancing_bottom_teams or [team_2, team_1] in advancing_bottom_teams:
                     bottom_round.append([1, 0] if winner == 0 else [0, 1])
-                    next_advancing_bottom.append(match[winner])  # Store advancing team
+                    next_advancing_bottom.append(match[winner])  # store advancing team
 
         advancing_bottom_teams = [next_advancing_bottom[i:i+2] for i in range(0, len(next_advancing_bottom), 2)]
         bottom_results.append(bottom_round)
 
-    # ✅ Ensure Final Four round exist
-    final_four = results[-2] if len(results) > 1 else []  # Second to last round
+    # ensure Final Four round exist
+    final_four = results[-2] if len(results) > 1 else []  # second to last round
 
-    # ✅ Handle Final Four
+    # handle Final Four
     final_four_results = []
     final_four_teams = []
 
@@ -107,16 +98,6 @@ def format_bracket_for_jquery_bracket(results):
     if len(final_four) > 1:
         final_four_results.append([1, 0] if final_four[1][2] == 0 else [0, 1])
         final_four_teams.append([final_four[1][0], final_four[1][1]])
-
-    # ✅ Handle Championship
-    final_result = []
-
-    # ✅ Print for Debugging
-    print("Top Bracket Teams:", top_teams)
-    print("Bottom Bracket Teams:", bottom_teams)
-    print("Top Results:", top_results)
-    print("Bottom Results:", bottom_results)  # ✅ Should now advance properly
-    print("Final Four Teams:", final_four_teams)
 
     return {
         "top_bracket": {"teams": top_teams, "results": [top_results]},
@@ -129,7 +110,7 @@ def format_bracket_for_jquery_bracket(results):
 
 # function to get correct suffix of percentile
 def ordinal(n):
-    if 10 <= n % 100 <= 20:  # Special case for 11th-19th
+    if 10 <= n % 100 <= 20:  # special case for 11th-19th
         suffix = "th"
     else:
         suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
@@ -171,30 +152,29 @@ def simulate():
         predictions = format_bracket(simulator.predicted_bracket)
         score = simulator.score_bracket()
 
-        # Handle scoring if results exist
+        # handle scoring if results exist
         try:
-            score = simulator.score_bracket()  # Try to score the bracket
+            score = simulator.score_bracket()  
         except Exception as e:
-            print(f"Scoring Error: {e}")
-            score = None  # Set score to None if scoring fails
+            score = None  # set score to None if scoring fails
 
-        # Handle percentile calculation
+        # handle percentile calculation
         percentile = None
         if score is not None:
             year_sim_scores = odds_sim_scores[odds_sim_scores["year"] == year]["score"]
 
-            # Check if there are valid historical scores
+            # check if there are valid historical scores
             if len(year_sim_scores) > 0:
                 percentile = ordinal(int(percentileofscore(year_sim_scores, score, kind='rank')))
 
 
-        # Store results in session
+        # store results in session
         session['selected_params'] = input_data
         session['simulation_results'] = predictions
         session['score'] = score
         session['percentile'] = percentile
 
-        # Redirect to results page after processing
+        # redirect to results page after processing
         return jsonify({'redirect_url': url_for('results')})
     
     except Exception as e:
@@ -204,7 +184,7 @@ def simulate():
             'message': str(e)
         }), 500
 
-# Route for the results page
+# route for the results page
 @app.route('/results')
 def results():
     selected_params = session.get('selected_params')
@@ -212,7 +192,7 @@ def results():
     score = session.get('score')
     percentile = session.get('percentile')
 
-    # Format the bracket for jQuery Bracket
+    # format the bracket for jquery
     formatted_bracket = format_bracket_for_jquery_bracket(raw_results)
 
     return render_template('results.html', selected_params=selected_params, 
