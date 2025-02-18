@@ -39,38 +39,52 @@ def format_bracket(results):
     return bracket_structure
 
 
-# function to format for html bracket
 def convert_bracket_format(simulation_output):
-
     formatted_bracket = {"rounds": []}
-    
     num_rounds = len(simulation_output)
 
     for round_index, matchups in enumerate(simulation_output):
         round_data = {"round": round_index + 1, "left": [], "right": []}
 
-        mid_point = len(matchups) // 2  # Split into left & right
+        # special handling for round 6 (index 5) when there's a single matchup:
+        if round_index == 5 and len(matchups) == 1:
+            team1, team2, _ = matchups[0]
 
-        for i, match in enumerate(matchups):
-            team1, team2, winner_index = match
-            winner = team1 if winner_index == 0 else team2
+            # instead of one match in one side, split the teams:
+            round_data["left"].append({
+                "team1": team1,
+                "team2": "",    # no opponent here
+                "winner": ""    # no winner yet (or leave as an empty string)
+            })
+            round_data["right"].append({
+                "team1": "",    # no team on the left in this slot
+                "team2": team2,
+                "winner": ""
+            })
+        else:
+            mid_point = len(matchups) // 2  # split into left & right by default
 
-            if i < mid_point:
-                round_data["left"].append({
-                    "team1": team1,
-                    "team2": team2,
-                    "winner": winner
-                })
-            else:
-                round_data["right"].append({
-                    "team1": team1,
-                    "team2": team2,
-                    "winner": winner
-                })
+            for i, match in enumerate(matchups):
+                team1, team2, winner_index = match
+                winner = team1 if winner_index == 0 else team2
+
+                if i < mid_point:
+                    round_data["left"].append({
+                        "team1": team1,
+                        "team2": team2,
+                        "winner": winner
+                    })
+                else:
+                    round_data["right"].append({
+                        "team1": team1,
+                        "team2": team2,
+                        "winner": winner
+                    })
 
         formatted_bracket["rounds"].append(round_data)
-    print(formatted_bracket)
+        
     return formatted_bracket
+
 
 
 
