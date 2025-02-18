@@ -113,7 +113,7 @@ class BracketSimulator:
                                     random_state=44
                                 )
 
-        training_data["weight"] = training_data["type"].map({"T": 1, "RS": 1})
+        training_data["weight"] = training_data["type"].map({"T": 5, "RS": 1})
         model.fit(training_data[predictors], training_data["winner"], sample_weight=training_data["weight"])
 
         return model, predictors
@@ -162,7 +162,7 @@ class BracketSimulator:
         matchups.loc[matchups["close_call_2"] & ~matchups["close_call_1"], "prediction"] = 1 
 
         # note close calls for the next round
-        close_thresh = 0.1
+        close_thresh = 0
         matchups.loc[:, "close_call_1"] = (matchups["win probability"] >= 0.5 - close_thresh) & (matchups["win probability"] <= 0.5 + close_thresh)  
         matchups.loc[:, "close_call_2"] = (1 - matchups["win probability"] >= 0.5 - close_thresh) & (1 - matchups["win probability"] <= 0.5 + close_thresh)
 
@@ -231,10 +231,37 @@ class BracketSimulator:
         return matchups
 
 
-# FOR TESTING
 
-'''data = pd.read_parquet("data/all_matchup_stats.parquet")
+'''def format_bracket(results):
+
+    num_rounds = 7  # rounds from 64 teams to a single champion
+
+    # Initialize a list of empty lists for each round
+    bracket_structure = [[] for _ in range(num_rounds)]
+
+    for _, row in results.iterrows():
+
+        round_index = int(np.log2(64 / row['current_round']))  # Convert to 0-5 index
+
+        # add the matchups to the appropriate round in order
+        matchup = [row['team_1'], row['team_2']]
+        bracket_structure[round_index].append(matchup)
+
+    # extract the final winner from the last matchup
+    final_game = results[results['current_round'] == 2].iloc[0]  
+    final_matchup = bracket_structure[-2][0]  # Get last game stored in bracket
+    final_winner = final_matchup[0] if final_game['prediction'] == 1 else final_matchup[1]
+
+    # Add the winner as the last round
+    bracket_structure[-1].append([final_winner])
+
+    return bracket_structure
+
+
+
+# FOR TESTING
+data = pd.read_parquet("data/all_matchup_stats.parquet")
 simulator = BracketSimulator(data, 2024)
 simulator.sim_bracket()
 print(simulator.score_bracket())
-'''
+print(format_bracket(simulator.predicted_bracket))'''

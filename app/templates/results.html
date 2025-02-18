@@ -1,10 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    
+    <!-- Load jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+    <!-- Load jQuery Bracket -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-bracket/0.11.1/jquery.bracket.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-bracket/0.11.1/jquery.bracket.min.js"></script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulation Results</title>
     <style>
+
+        /* Remove the "1st" and "2nd" tags */
+        .bubble {
+            display: none !important;
+        }
+
+        /* Increase the label width */
+        .label {
+            width: 100px !important;  /* Adjust as needed */
+            font-size: 14px !important; /* Optional: Increase font size */
+        }
+
+        /* Increase the team box width */
+        .team {
+            width: 100px !important; /* Adjust as needed */
+            height: 20px !important;
+        }
+
+        /* Ensure the score doesn't affect layout */
+        .score {
+            width: 0 !important;
+            font-size: 0 !important;
+            visibility: hidden;
+        }
+
+
+        #main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+
+
+        #middle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            transform: translate(-4%, -100%);
+        }
+
+
+        #final-four-bracket-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px; /* Adds a bit of spacing */
+        }
+
+
+
+
+
         .back-button {
             display: inline-flex;
             align-items: center;
@@ -23,57 +87,180 @@
             font-size: 22px;
             margin-right: 8px;
         }
+
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
     </style>
 </head>
-<body>
 
-    <!-- Back Button -->
-    <a href="/" class="back-button">
-        <span class="arrow">←</span> Run Another Simulation
-    </a>
+    <body>
 
-    <h1>Simulation Results</h1>
+        <!-- Back Button -->
+        <a href="/" class="back-button">
+            <span class="arrow">←</span> Run Another Simulation
+        </a>
+    
+        <div id="score-container" style="text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px;">
+            {% if score %}
+                <p>Your bracket scored <strong>{{ score }} points</strong> 
+                {% if percentile %} 
+                    (<span class="percentile-container">{{ percentile }} percentile 
+                    <span class="help-icon" data-tooltip="Compared to 10,000 simulations based on historical seed-based odds">?</span>
+                    </span>)
+                {% endif %}
+                </p>
+            {% else %}
+                <p>Results will be updated when games are completed!</p>
+            {% endif %}
+        </div>        
+        
+        <style>
+            /* Positioning for the help icon next to the percentile */
+            .percentile-container {
+                display: inline-flex;
+                align-items: center;
+            }
+        
+            .help-icon {
+                font-size: 12px;
+                color: #1F4DA3; /* Blue */
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 14px;
+                height: 14px;
+                border-radius: 50%;
+                border: 1px solid #1F4DA3;
+                text-align: center;
+                line-height: 14px;
+                font-weight: bold;
+                margin-left: 5px; /* Space between text and help icon */
+                position: relative;
+            }
+        
+            /* Tooltip Styling */
+            .help-icon::after {
+                content: attr(data-tooltip);
+                position: absolute;
+                background-color: #333;
+                color: white;
+                padding: 6px 10px;
+                font-size: 12px;
+                border-radius: 5px;
+                white-space: nowrap;
+                bottom: 150%; /* Moves the tooltip above instead of below */
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 9999;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+                pointer-events: none;
+            }
+        
+            /* Show tooltip on hover */
+            .help-icon:hover::after {
+                opacity: 1;
+                visibility: visible;
+            }
+        </style>
+        
+    
+        <div id="main" style="display: flex; justify-content: center; align-items: center; gap: 80px; position: relative;">
+            <div id="top-bracket-container"></div>
+            <div id="middle-container">
+                <div id="final-four-bracket-container"></div>
+            </div>
+            <div id="bottom-bracket-container"></div>
+        </div>
+    
+        <div id="championship-bracket-container" style="width: 100%; height: auto; margin-top: 20px;"></div>
+    
+    </body>
 
-    <h2>Selected Parameters</h2>
-    <ul>
-        <li>Year: {{ selected_params.year }}</li>
-        <li>Picked Winner: {{ selected_params.picked_winner }}</li>
-        <li>Playstyle: {{ selected_params.playstyle }}</li>
-        <li>Boldness: {{ selected_params.boldness }}</li>
-    </ul>
+    <div id="main" style="display: flex; justify-content: center; align-items: center; gap: 80px; position: relative;">
+        <div id="top-bracket-container"></div>
+        <div id="middle-container">
+            <div id="final-four-bracket-container"></div>
+        </div>
+        <div id="bottom-bracket-container"></div>
+    </div>
+    
+    
+    
+    
+    <div id="championship-bracket-container" style="width: 100%; height: auto; margin-top: 20px;"></div>
+    
+    <script>
+        $(document).ready(function() {
+            const bracketData = JSON.parse('{{ formatted_bracket | tojson | safe }}');
+    
+            console.log("Bracket Data:", bracketData);
+    
+            const bracketConfig = {
+                teamWidth: 80,      // Reduce team width
+                matchMargin: 5,     // Reduce space between matchups
+                roundMargin: 20,    // Reduce space between rounds
+                scoreWidth: 15,
+                skipConsolationRound: true
+            };
+    
+            // Render Top Half
+            $('#top-bracket-container').bracket({
+                ...bracketConfig,
+                init: bracketData.top_bracket,
+                dir: "lr",
+                onMatchClick: function(data) {
+                    alert(`Matchup: ${data[0]} vs ${data[1]}`);
+                }
+            });
+    
+            // Render Bottom Half (Reversed)
+            $('#bottom-bracket-container').bracket({
+                ...bracketConfig,
+                init: bracketData.bottom_bracket,
+                dir: "rl",
+                onMatchClick: function(data) {
+                    alert(`Matchup: ${data[0]} vs ${data[1]}`);
+                }
+            });
+    
+            $('#final-four-bracket-container').bracket({
+                ...bracketConfig,
+                init: bracketData.final_four_bracket,
+                dir: "lr",
+                onMatchClick: function(data) {
+                    alert(`Final Four: ${data[0]} vs ${data[1]}`);
+                }
+            });
 
-    <h2>Bracket Results</h2>
-    {% if results %}
-        <table border="1">
-            <tr>
-                <th>Team 1</th>
-                <th>Team 2</th>
-                <th>Prediction</th>
-            </tr>
-            {% for row in results %}
-            <tr>
-                <td>{{ row.team_1 }}</td>
-                <td>{{ row.team_2 }}</td>
-                <td>{{ row.prediction }}</td>
-            </tr>
-            {% endfor %}
-        </table>
-    {% else %}
-        <p>No results available.</p>
-    {% endif %}
-
-    <h2>Bracket Score</h2>
-    {% if score %}
-        <p>Your bracket scored: <strong>{{ score }} points</strong></p>
-    {% else %}
-        <p>No score available.</p>
-    {% endif %}
-
-    <h2>Percentile Rank</h2>
-    {% if percentile %}
-        <p>Your bracket is in the <strong>{{ percentile }}</strong> percentile.</p>
-    {% else %}
-        <p>No score available.</p>
-    {% endif %}
+    
+            // Render Championship
+            $('#championship-bracket-container').bracket({
+                ...bracketConfig,
+                init: bracketData.championship_bracket,
+                dir: "lr",
+                onMatchClick: function(data) {
+                    alert(`Championship: ${data[0]} vs ${data[1]}`);
+                }
+            });
+        });
+    </script>
+    
+    
+    
+    <style>
+        .bracket-text {
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+    
 </body>
 </html>
