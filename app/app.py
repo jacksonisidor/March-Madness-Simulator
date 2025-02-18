@@ -39,72 +39,38 @@ def format_bracket(results):
     return bracket_structure
 
 
-# function to format for jquery
-def format_bracket_for_jquery_bracket(results):
+# function to format for html bracket
+def convert_bracket_format(simulation_output):
 
-    num_matchups = len(results[0])  # total matchups in the first round (32)
-    mid_point = num_matchups // 2   # split point (16 per side)
+    formatted_bracket = {"rounds": []}
+    
+    num_rounds = len(simulation_output)
 
-    # separate top and bottom brackets (will be right and left visually)
-    top_teams = [[match[0], match[1]] for match in results[0][:mid_point]]
-    bottom_teams = [[match[0], match[1]] for match in results[0][mid_point:]]
+    for round_index, matchups in enumerate(simulation_output):
+        round_data = {"round": round_index + 1, "left": [], "right": []}
 
-    # store results separately
-    top_results = []
-    bottom_results = []
+        mid_point = len(matchups) // 2  # Split into left & right
 
-    # process the top half
-    advancing_top_teams = top_teams[:]  # copy initial teams for tracking progression
-    for round_idx, round_matches in enumerate(results[:-2]):  # exclude last 2 rounds (jquery formatting stuff)
-        top_round = []
-        next_advancing_top = []  # track advancing teams for next round
+        for i, match in enumerate(matchups):
+            team1, team2, winner_index = match
+            winner = team1 if winner_index == 0 else team2
 
-        for match in round_matches:
-            if len(match) == 3:  # ensure match contains winner flag
-                winner = match[2]
-                top_round.append([1, 0] if winner == 0 else [0, 1])
-                next_advancing_top.append(match[winner])  # store advancing team
+            if i < mid_point:
+                round_data["left"].append({
+                    "team1": team1,
+                    "team2": team2,
+                    "winner": winner
+                })
+            else:
+                round_data["right"].append({
+                    "team1": team1,
+                    "team2": team2,
+                    "winner": winner
+                })
 
-        advancing_top_teams = [next_advancing_top[i:i+2] for i in range(0, len(next_advancing_top), 2)]
-        top_results.append(top_round)
-
-    # process the bottom half (a little different because the reversal messed with everything)
-    advancing_bottom_teams = bottom_teams[:] 
-    for round_idx, round_matches in enumerate(results[:-2]):  # exclude last 2 rounds
-        bottom_round = []
-        next_advancing_bottom = []  # track advancing teams for next round
-
-        for match in round_matches:
-            if len(match) == 3:  # ensure match contains winner flag
-                team_1, team_2, winner = match
-                if [team_1, team_2] in advancing_bottom_teams or [team_2, team_1] in advancing_bottom_teams:
-                    bottom_round.append([1, 0] if winner == 0 else [0, 1])
-                    next_advancing_bottom.append(match[winner])  # store advancing team
-
-        advancing_bottom_teams = [next_advancing_bottom[i:i+2] for i in range(0, len(next_advancing_bottom), 2)]
-        bottom_results.append(bottom_round)
-
-    # ensure Final Four round exist
-    final_four = results[-2] if len(results) > 1 else []  # second to last round
-
-    # handle Final Four
-    final_four_results = []
-    final_four_teams = []
-
-    if len(final_four) > 0:
-        final_four_results.append([1, 0] if final_four[0][2] == 0 else [0, 1])
-        final_four_teams.append([final_four[0][0], final_four[0][1]])
-
-    if len(final_four) > 1:
-        final_four_results.append([1, 0] if final_four[1][2] == 0 else [0, 1])
-        final_four_teams.append([final_four[1][0], final_four[1][1]])
-
-    return {
-        "top_bracket": {"teams": top_teams, "results": [top_results]},
-        "bottom_bracket": {"teams": bottom_teams, "results": [bottom_results]},
-        "final_four_bracket": {"teams": final_four_teams, "results": [[final_four_results]]}
-    }
-
+        formatted_bracket["rounds"].append(round_data)
+    print(formatted_bracket)
+    return formatted_bracket
 
 
 
@@ -193,7 +159,7 @@ def results():
     percentile = session.get('percentile')
 
     # format the bracket for jquery
-    formatted_bracket = format_bracket_for_jquery_bracket(raw_results)
+    formatted_bracket = convert_bracket_format(raw_results)
 
     return render_template('results.html', selected_params=selected_params, 
                            results=raw_results, formatted_bracket=formatted_bracket,
