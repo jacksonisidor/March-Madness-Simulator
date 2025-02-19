@@ -14,29 +14,36 @@ odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet")
 
 # function to format the bracket as nested list
 def format_bracket(results):
-
     num_rounds = 7  # rounds from 64 teams to a single champion
     bracket_structure = [[] for _ in range(num_rounds)]
 
     for _, row in results.iterrows():
-        round_index = int(round((np.log2(64 / row['current_round']))))  # convert to index
+        round_index = int(round(np.log2(64 / row['current_round'])))  # convert to index
 
-        # determine the actual winner
-        winner = 0 if row["prediction"] == 1 else 1  # 0 means team_1 won, 1 means team_2 won
+        # Determine the winner index (0 for team_1, 1 for team_2)
+        winner = 0 if row["prediction"] == 1 else 1
 
-        # store the matchup along with the winner index
-        matchup = [row['team_1'], row['team_2'], winner]
+        # Extract win probabilities from the DataFrame (assuming the columns are named 'p1' and 'p2')
+        p1 = row['win probability']
+        p2 = 1 - row['win probability']
+
+        # Create a matchup tuple with probabilities added
+        matchup = [row['team_1'], row['team_2'], p1, p2, winner]
         bracket_structure[round_index].append(matchup)
 
-    # extract the final winner from the last matchup
-    final_game = results[results['current_round'] == 2].iloc[0]  
-    final_matchup = bracket_structure[-2][0]  # get last game stored in bracket
+    # For the final round, you can derive the champion from the last stored matchup
+    final_game = results[results['current_round'] == 2].iloc[0]
+    final_matchup = bracket_structure[-2][0]  # last game in the bracket
     final_winner = final_matchup[0] if final_game['prediction'] == 1 else final_matchup[1]
+    # Optionally pass along the corresponding probability as well
+    final_p1 = final_matchup[2]
+    final_p2 = final_matchup[3]
 
-    # add the final winner as the last round
-    bracket_structure[-1].append([final_winner, "", 0])  # no opponent, default winner
-
+    # Add the final winner matchup; here p1 and p2 may not be needed, so you can set defaults
+    bracket_structure[-1].append([final_winner, "", final_p1, final_p2, 0])
+    
     return bracket_structure
+
 
 
 def convert_bracket_format(simulation_output):
@@ -46,41 +53,28 @@ def convert_bracket_format(simulation_output):
     for round_index, matchups in enumerate(simulation_output):
         round_data = {"round": round_index + 1, "left": [], "right": []}
 
-        # special handling for round 6 (index 5) when there's a single matchup:
         if round_index == 5 and len(matchups) == 1:
-            team1, team2, _ = matchups[0]
-
-            # instead of one match in one side, split the teams:
-            round_data["left"].append({
-                "team1": team1,
-                "team2": "",    # no opponent here
-                "winner": ""    # no winner yet (or leave as an empty string)
-            })
-            round_data["right"].append({
-                "team1": "",    # no team on the left in this slot
-                "team2": team2,
-                "winner": ""
-            })
+            team1, team2, p1, p2, _ = matchups[0]
+            round_data["left"].append({"team1": team1, "team2": "", "p1": p1, "p2": p2, "winner": ""})
+            round_data["right"].append({"team1": "", "team2": team2, "p1": p1, "p2": p2, "winner": ""})
         else:
-            mid_point = len(matchups) // 2  # split into left & right by default
-
+            mid_point = len(matchups) // 2
             for i, match in enumerate(matchups):
-                team1, team2, winner_index = match
+                team1, team2, p1, p2, winner_index = match
                 winner = team1 if winner_index == 0 else team2
 
-                if i < mid_point:
-                    round_data["left"].append({
-                        "team1": team1,
-                        "team2": team2,
-                        "winner": winner
-                    })
-                else:
-                    round_data["right"].append({
-                        "team1": team1,
-                        "team2": team2,
-                        "winner": winner
-                    })
+                const_obj = {
+                    "team1": team1,
+                    "team2": team2,
+                    "p1": p1,
+                    "p2": p2,
+                    "winner": winner
+                }
 
+                if i < mid_point:
+                    round_data["left"].append(const_obj)
+                else:
+                    round_data["right"].append(const_obj)
         formatted_bracket["rounds"].append(round_data)
         
     return formatted_bracket
