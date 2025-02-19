@@ -1,266 +1,548 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulation Results</title>
+  <style>
+    /* General Layout */
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: auto;
+      background-color: #ced1d3;
+    }
+    /* Back Button */
+    .back-button {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      font-size: 18px;
+      color: #007BFF;
+      text-decoration: none;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    .back-button:hover {
+      text-decoration: underline;
+    }
+    .arrow {
+      font-size: 22px;
+      margin-right: 8px;
+    }
+    /* Score Container */
+    #score-container {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      margin-top: 50px;
+    }
+    /* Help Icon */
+    .percentile-container {
+      display: inline-flex;
+      align-items: center;
+    }
+    .help-icon {
+      font-size: 12px;
+      color: #1F4DA3;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid #1F4DA3;
+      text-align: center;
+      line-height: 14px;
+      font-weight: bold;
+      margin-left: 5px;
+      position: relative;
+    }
+    .help-icon::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      background-color: #333;
+      color: white;
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 5px;
+      white-space: nowrap;
+      bottom: 150%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease-in-out;
+      pointer-events: none;
+    }
+    .help-icon:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+    .bracket-container {
+      align-self: flex-start;
+      display: flex;
+      justify-content: space-evenly;
+      margin-left: 25px;
+      width: 95vw;
+      max-width: 1400px;
+      min-width: 1400px;  /* no resizing, might change later. already added some dynamic resizing */
+      position: relative;
+    }
+    .bracket-column {
+      display: flex;
+      flex-direction: row;
+      position: relative;
+      width: 45%;
+      justify-content: space-around;
+    }
+    .bracket-column:first-child {
+      justify-content: flex-start;
+    }
+    .bracket-column:last-child {
+      justify-content: flex-end;
+    }
+    .bracket-round {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-around;
+      gap: 5px;
+      margin-right: 30px;
+      position: relative;
+    }
+    .round-64  { width: 160px; }
+    .round-32  { width: 140px; transform: translateX(5%); }
+    .round-16  { width: 120px; transform: translateX(10%); }
+    .round-8   { width: 100px; transform: translateX(15%); }
+    .round-4   { width: 80px;  transform: translateX(20%); }
+    .round-2   { width: 60px;  transform: translateX(25%); }
+    .final     { width: 50px;  transform: translateX(50%); text-align: center; }
     
-    <!-- Load jQuery -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    #championship-container {
+      position: absolute;
+      left: 50%;
+      top: 350px;
+      transform: translateX(-50%);
+      text-align: center;
+    }
 
-    <!-- Load jQuery Bracket -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-bracket/0.11.1/jquery.bracket.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-bracket/0.11.1/jquery.bracket.min.js"></script>
+    .bracket-team {
+      box-sizing: border-box;
+      background-color: #f0f0f0;
+      border: 1px solid black;
+      padding: 1px;
+      border-radius: 3px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 12px;
+      min-width: 80px;
+    }
+    .bracket-matchup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 8px;
+    }
+    .final {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      transform: translateX(30%);
+      font-weight: bold;
+    }
+    #champion-team {
+      background: gold;
+      font-weight: bold;
+      padding: 10px 15px;
+      margin-bottom: -15px;
+      font-size: 18px;
+      border-radius: 8px;
+      text-align: center;
+      display: inline-block;
+    }
 
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulation Results</title>
-    <style>
-
-        /* Remove the "1st" and "2nd" tags */
-        .bubble {
-            display: none !important;
-        }
-
-        /* Increase the label width */
-        .label {
-            width: 100px !important;  /* Adjust as needed */
-            font-size: 14px !important; /* Optional: Increase font size */
-        }
-
-        /* Increase the team box width */
-        .team {
-            width: 100px !important; /* Adjust as needed */
-            height: 20px !important;
-        }
-
-        /* Ensure the score doesn't affect layout */
-        .score {
-            width: 0 !important;
-            font-size: 0 !important;
-            visibility: hidden;
-        }
-
-
-        #main {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            position: relative;
-        }
-
-
-        #middle-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: absolute;
-            transform: translate(-4%, -100%);
+    .bracket-team.highlight {
+        box-shadow: 0 0 8px 3px rgba(32, 187, 32, 0.8);
+        border: 2px solid #3acf3a;
         }
 
 
-        #final-four-bracket-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px; /* Adds a bit of spacing */
+    /* Highlight styles for dynamic highlighting */
+    .highlight {
+      background-color: #a8e6a1; /* light green */
+      border: 1px solid green;
+    }
+    .highlight-line {
+      stroke: green;
+      stroke-width: 3;
+    }
+
+    .legend {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 100px 0;
+        margin-bottom: -130px;
+    }
+
+        .legend-label {
+        font-size: 14px;
+        margin: 0 10px;
+        }
+
+        .color-scale {
+        width: 200px;
+        height: 20px;
+        background: linear-gradient(to right, hsla(0, 100%, 70%, 0.5), hsla(120, 100%, 50%, 0.5));
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        }
+
+        .fixed-width-container {
+        width: 95vw;
+        max-width: 1400px;
+        min-width: 1400px; /* ensures no resizing */
+        margin: 0 auto; /* center it */
         }
 
 
 
-
-
-        .back-button {
-            display: inline-flex;
-            align-items: center;
-            font-size: 18px;
-            color: #007BFF;
-            text-decoration: none;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        
-        .back-button:hover {
-            text-decoration: underline;
-        }
-
-        .arrow {
-            font-size: 22px;
-            margin-right: 8px;
-        }
-
-        pre {
-            background: #f4f4f4;
-            padding: 10px;
-            border-radius: 5px;
-            overflow-x: auto;
-        }
-        
-    </style>
-</head>
-
-    <body>
-
-        <!-- Back Button -->
-        <a href="/" class="back-button">
-            <span class="arrow">←</span> Run Another Simulation
-        </a>
-    
-        <div id="score-container" style="text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px;">
-            {% if score %}
-                <p>Your bracket scored <strong>{{ score }} points</strong> 
-                {% if percentile %} 
-                    (<span class="percentile-container">{{ percentile }} percentile 
-                    <span class="help-icon" data-tooltip="Compared to 10,000 simulations based on historical seed-based odds">?</span>
-                    </span>)
-                {% endif %}
-                </p>
-            {% else %}
-                <p>Results will be updated when games are completed!</p>
-            {% endif %}
-        </div>        
-        
-        <style>
-            /* Positioning for the help icon next to the percentile */
-            .percentile-container {
-                display: inline-flex;
-                align-items: center;
-            }
-        
-            .help-icon {
-                font-size: 12px;
-                color: #1F4DA3; /* Blue */
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                border: 1px solid #1F4DA3;
-                text-align: center;
-                line-height: 14px;
-                font-weight: bold;
-                margin-left: 5px; /* Space between text and help icon */
-                position: relative;
-            }
-        
-            /* Tooltip Styling */
-            .help-icon::after {
-                content: attr(data-tooltip);
-                position: absolute;
-                background-color: #333;
-                color: white;
-                padding: 6px 10px;
-                font-size: 12px;
-                border-radius: 5px;
-                white-space: nowrap;
-                bottom: 150%; /* Moves the tooltip above instead of below */
-                left: 50%;
-                transform: translateX(-50%);
-                z-index: 9999;
-                opacity: 0;
-                visibility: hidden;
-                transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
-                pointer-events: none;
-            }
-        
-            /* Show tooltip on hover */
-            .help-icon:hover::after {
-                opacity: 1;
-                visibility: visible;
-            }
         </style>
-        
-    
-        <div id="main" style="display: flex; justify-content: center; align-items: center; gap: 80px; position: relative;">
-            <div id="top-bracket-container"></div>
-            <div id="middle-container">
-                <div id="final-four-bracket-container"></div>
-            </div>
-            <div id="bottom-bracket-container"></div>
-        </div>
-    
-        <div id="championship-bracket-container" style="width: 100%; height: auto; margin-top: 20px;"></div>
-    
-    </body>
-
-    <div id="main" style="display: flex; justify-content: center; align-items: center; gap: 80px; position: relative;">
-        <div id="top-bracket-container"></div>
-        <div id="middle-container">
-            <div id="final-four-bracket-container"></div>
-        </div>
-        <div id="bottom-bracket-container"></div>
+</head>
+<body>
+  <!-- Back Button -->
+  <a href="/" class="back-button">
+    <span class="arrow">←</span> Run Another Simulation
+  </a>
+  
+  <div class="fixed-width-container">
+    <!-- Score Display -->
+    <div id="score-container">
+        {% if score %}
+        <p>Your bracket scored <strong>{{ score }} points</strong>
+        {% if percentile %}
+            (<span class="percentile-container">{{ percentile }} percentile
+            <span class="help-icon" data-tooltip="Compared to 10,000 simulations based on historical seed-based odds">?</span>
+            </span>)
+        {% endif %}
+        </p>
+        {% else %}
+        <p>Results will be updated when games are completed!</p>
+        {% endif %}
     </div>
-    
-    
-    
-    
-    <div id="championship-bracket-container" style="width: 100%; height: auto; margin-top: 20px;"></div>
-    
-    <script>
-        $(document).ready(function() {
-            const bracketData = JSON.parse('{{ formatted_bracket | tojson | safe }}');
-    
-            console.log("Bracket Data:", bracketData);
-    
-            const bracketConfig = {
-                teamWidth: 80,      // Reduce team width
-                matchMargin: 5,     // Reduce space between matchups
-                roundMargin: 20,    // Reduce space between rounds
-                scoreWidth: 15,
-                skipConsolationRound: true
-            };
-    
-            // Render Top Half
-            $('#top-bracket-container').bracket({
-                ...bracketConfig,
-                init: bracketData.top_bracket,
-                dir: "lr",
-                onMatchClick: function(data) {
-                    alert(`Matchup: ${data[0]} vs ${data[1]}`);
-                }
-            });
-    
-            // Render Bottom Half (Reversed)
-            $('#bottom-bracket-container').bracket({
-                ...bracketConfig,
-                init: bracketData.bottom_bracket,
-                dir: "rl",
-                onMatchClick: function(data) {
-                    alert(`Matchup: ${data[0]} vs ${data[1]}`);
-                }
-            });
-    
-            $('#final-four-bracket-container').bracket({
-                ...bracketConfig,
-                init: bracketData.final_four_bracket,
-                dir: "lr",
-                onMatchClick: function(data) {
-                    alert(`Final Four: ${data[0]} vs ${data[1]}`);
-                }
-            });
 
-    
-            // Render Championship
-            $('#championship-bracket-container').bracket({
-                ...bracketConfig,
-                init: bracketData.championship_bracket,
-                dir: "lr",
-                onMatchClick: function(data) {
-                    alert(`Championship: ${data[0]} vs ${data[1]}`);
-                }
-            });
-        });
-    </script>
-    
-    
-    
-    <style>
-        .bracket-text {
-            font-size: 12px;
-            font-family: Arial, sans-serif;
+    <div class="legend">
+        <span class="legend-label">Low Confidence</span>
+        <div class="color-scale"></div>
+        <span class="legend-label">High Confidence</span>
+    </div>
+    </div>
+
+  <!-- Bracket Structure -->
+  <div class="bracket-container" id="bracket-container" style="position: relative;">
+    <!-- SVG overlay for connector lines -->
+    <svg id="svg-connector" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></svg>
+    <!-- LEFT SIDE -->
+    <div class="bracket-column">
+      <div class="bracket-round" id="round-64-left"></div>
+      <div class="bracket-round" id="round-32-left"></div>
+      <div class="bracket-round" id="sweet-16-left"></div>
+      <div class="bracket-round" id="elite-8-left"></div>
+      <div class="bracket-round" id="final-four-left"></div>
+    </div>
+    <!-- Final left (Championship entrant) -->
+    <div class="bracket-column">
+      <div class="bracket-round championship-entrant" id="championship-entrant-left"></div>
+    </div>
+    <!-- Championship Centered Winner Box -->
+    <div id="championship-container">
+      <div class="bracket-round" id="championship">
+        <div class="championship-matchup">
+          <div class="bracket-team" id="champion-team">🏆 Winner 🏆</div>
+        </div>
+      </div>
+    </div>
+    <!-- Final right (Championship entrant) -->
+    <div class="bracket-column">
+      <div class="bracket-round championship-entrant" id="championship-entrant-right"></div>
+    </div>
+    <!-- RIGHT SIDE -->
+    <div class="bracket-column">
+      <div class="bracket-round" id="final-four-right"></div>
+      <div class="bracket-round" id="elite-8-right"></div>
+      <div class="bracket-round" id="sweet-16-right"></div>
+      <div class="bracket-round" id="round-32-right"></div>
+      <div class="bracket-round" id="round-64-right"></div>
+    </div>
+  </div>
+  <!-- Populate the bracket with teams -->
+  <script>
+    // Convert the Python object to JSON
+    const bracketData = JSON.parse('{{ formatted_bracket|tojson|safe }}');
+    // Helpers to map round numbers to DOM IDs
+    function getLeftRoundId(roundNum) {
+      switch(roundNum) {
+        case 1: return "round-64-left";
+        case 2: return "round-32-left";
+        case 3: return "sweet-16-left";
+        case 4: return "elite-8-left";
+        case 5: return "final-four-left";
+        case 6: return "championship-entrant-left";
+        default: return null;
+      }
+    }
+    function getRightRoundId(roundNum) {
+      switch(roundNum) {
+        case 1: return "round-64-right";
+        case 2: return "round-32-right";
+        case 3: return "sweet-16-right";
+        case 4: return "elite-8-right";
+        case 5: return "final-four-right";
+        case 6: return "championship-entrant-right";
+        default: return null;
+      }
+    }
+    // Populate the bracket using the formatted data
+    function populateBracket(data) {
+  data.rounds.forEach(rObj => {
+    const roundNumber = rObj.round;
+    const leftSide = rObj.left || [];
+    const rightSide = rObj.right || [];
+
+    // LEFT SIDE
+    const leftRoundDiv = document.getElementById(getLeftRoundId(roundNumber));
+    if (leftRoundDiv) {
+      leftRoundDiv.innerHTML = "";
+      leftSide.forEach(matchup => {
+        const matchupDiv = document.createElement("div");
+        matchupDiv.classList.add("bracket-matchup");
+
+        // Check if it's a single team box (e.g., bye situation)
+        if (!matchup.team2 || matchup.team2.trim() === "") {
+          const singleDiv = document.createElement("div");
+          singleDiv.classList.add("bracket-team");
+          singleDiv.textContent = matchup.team1;
+          singleDiv.setAttribute("data-team", matchup.team1);
+          // Set color using p1
+          singleDiv.style.backgroundColor = getTeamColor(matchup.p1);
+          matchupDiv.appendChild(singleDiv);
+        } else {
+          const team1Div = document.createElement("div");
+          team1Div.classList.add("bracket-team");
+          team1Div.textContent = matchup.team1;
+          team1Div.setAttribute("data-team", matchup.team1);
+          // Color team1 using its win probability (p1)
+          team1Div.style.backgroundColor = getTeamColor(matchup.p1);
+
+          const team2Div = document.createElement("div");
+          team2Div.classList.add("bracket-team");
+          team2Div.textContent = matchup.team2;
+          team2Div.setAttribute("data-team", matchup.team2);
+          // Color team2 using its win probability (p2)
+          team2Div.style.backgroundColor = getTeamColor(matchup.p2);
+
+          matchupDiv.appendChild(team1Div);
+          matchupDiv.appendChild(team2Div);
         }
-    </style>
-    
+        leftRoundDiv.appendChild(matchupDiv);
+      });
+    }
+
+    // RIGHT SIDE
+    const rightRoundDiv = document.getElementById(getRightRoundId(roundNumber));
+    if (rightRoundDiv) {
+      rightRoundDiv.innerHTML = "";
+      rightSide.forEach(matchup => {
+        const matchupDiv = document.createElement("div");
+        matchupDiv.classList.add("bracket-matchup");
+
+        if (!matchup.team1 || matchup.team1.trim() === "") {
+          const singleDiv = document.createElement("div");
+          singleDiv.classList.add("bracket-team");
+          singleDiv.textContent = matchup.team2;
+          singleDiv.setAttribute("data-team", matchup.team2);
+          // For a single box, use p2
+          singleDiv.style.backgroundColor = getTeamColor(matchup.p2);
+          matchupDiv.appendChild(singleDiv);
+        } else {
+          const team1Div = document.createElement("div");
+          team1Div.classList.add("bracket-team");
+          team1Div.textContent = matchup.team1;
+          team1Div.setAttribute("data-team", matchup.team1);
+          team1Div.style.backgroundColor = getTeamColor(matchup.p1);
+
+          const team2Div = document.createElement("div");
+          team2Div.classList.add("bracket-team");
+          team2Div.textContent = matchup.team2;
+          team2Div.setAttribute("data-team", matchup.team2);
+          team2Div.style.backgroundColor = getTeamColor(matchup.p2);
+
+          matchupDiv.appendChild(team1Div);
+          matchupDiv.appendChild(team2Div);
+        }
+        rightRoundDiv.appendChild(matchupDiv);
+      });
+    }
+
+    // If round 7 exists, set champion
+    if (roundNumber === 7 && rightSide.length > 0) {
+      const champion = rightSide[0].winner || "";
+      document.getElementById("champion-team").textContent = "🏆 " + champion + " 🏆";
+    }
+  });
+}
+
+    // Add dynamic highlighting to team boxes and connector lines
+    function addHighlighting() {
+      document.querySelectorAll('.bracket-team').forEach(teamDiv => {
+        teamDiv.addEventListener('mouseenter', function() {
+          const teamId = this.getAttribute('data-team');
+          document.querySelectorAll(`.bracket-team[data-team="${teamId}"]`).forEach(el => {
+            el.classList.add('highlight');
+          });
+          document.querySelectorAll(`line[data-team~="${teamId}"]`).forEach(line => {
+            line.classList.add('highlight-line');
+          });
+        });
+        teamDiv.addEventListener('mouseleave', function() {
+          const teamId = this.getAttribute('data-team');
+          document.querySelectorAll(`.bracket-team[data-team="${teamId}"]`).forEach(el => {
+            el.classList.remove('highlight');
+          });
+          document.querySelectorAll(`line[data-team~="${teamId}"]`).forEach(line => {
+            line.classList.remove('highlight-line');
+          });
+        });
+      });
+    }
+    // Once DOM is loaded, populate bracket, draw connectors, and add highlighting
+    document.addEventListener("DOMContentLoaded", function() {
+      populateBracket(bracketData);
+      drawAllConnectors();
+      addHighlighting();
+    });
+  </script>
+  <script>
+    // Manhattan connector: draws an SVG path with horizontal then vertical segments
+    function drawSvgManhattanLine(x1, y1, x2, y2, teams = []) {
+      const svg = document.getElementById("svg-connector");
+      const svgns = "http://www.w3.org/2000/svg";
+      const path = document.createElementNS(svgns, "path");
+      // Use the midpoint between x1 and x2 for the horizontal segment
+      let midX = (x1 + x2) / 2;
+      let d = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+      path.setAttribute("d", d);
+      path.setAttribute("stroke", "black");
+      path.setAttribute("stroke-width", 2);
+      path.setAttribute("fill", "none");
+      if (teams.length > 0) {
+        path.setAttribute("data-team", teams.join(" "));
+      }
+      svg.appendChild(path);
+    }
+    // Modified connector functions using Manhattan lines
+    function drawAllConnectors() {
+      const svg = document.getElementById("svg-connector");
+      while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+      // Connect left side rounds
+      connectRounds("round-64-left", "round-32-left");
+      connectRounds("round-32-left", "sweet-16-left");
+      connectRounds("sweet-16-left", "elite-8-left");
+      connectRounds("elite-8-left", "final-four-left");
+      // Connect right side rounds
+      connectRounds("round-64-right", "round-32-right");
+      connectRounds("round-32-right", "sweet-16-right");
+      connectRounds("sweet-16-right", "elite-8-right");
+      connectRounds("elite-8-right", "final-four-right");
+      // Connect final four to championship entrant boxes
+      connectSingleMatchup("final-four-left", "championship-entrant-left", false);
+      connectSingleMatchup("final-four-right", "championship-entrant-right", true);
+      // Connect championship entrant boxes to champion box (final connectors)
+      connectSingleMatchup("championship-entrant-left", "championship", false);
+      connectSingleMatchup("championship-entrant-right", "championship", true);
+    }
+    function connectRounds(roundFromId, roundToId) {
+      const fromRound = document.getElementById(roundFromId);
+      const toRound = document.getElementById(roundToId);
+      if (!fromRound || !toRound) return;
+      const fromMatchups = fromRound.querySelectorAll(".bracket-matchup");
+      const toMatchups = toRound.querySelectorAll(".bracket-matchup");
+      const containerRect = document.getElementById("bracket-container").getBoundingClientRect();
+      const isRightSide = roundFromId.includes("-right") || roundToId.includes("-right");
+      toMatchups.forEach((toMatchup, i) => {
+        const i1 = 2 * i;
+        const i2 = 2 * i + 1;
+        if (i1 >= fromMatchups.length || i2 >= fromMatchups.length) return;
+        const rectTo = toMatchup.getBoundingClientRect();
+        const xTo = isRightSide
+          ? (rectTo.right - containerRect.left)
+          : (rectTo.left - containerRect.left);
+        const yTo = rectTo.top + rectTo.height / 2 - containerRect.top;
+        [i1, i2].forEach(idx => {
+          const fromMatchup = fromMatchups[idx];
+          const rectFrom = fromMatchup.getBoundingClientRect();
+          const xFrom = isRightSide
+            ? (rectFrom.left - containerRect.left)
+            : (rectFrom.right - containerRect.left);
+          const yFrom = rectFrom.top + rectFrom.height / 2 - containerRect.top;
+          // You could pass an array of team IDs if desired:
+          drawSvgManhattanLine(xFrom, yFrom, xTo, yTo);
+        });
+      });
+    }
+    function connectSingleMatchup(roundFromId, roundToId, isRightSide) {
+      const fromRound = document.getElementById(roundFromId);
+      const toRound = document.getElementById(roundToId);
+      if (!fromRound || !toRound) return;
+      const fromMatchup = fromRound.querySelector(".bracket-matchup");
+      const toMatchup = toRound.querySelector(".bracket-matchup");
+      if (!fromMatchup || !toMatchup) return;
+      const containerRect = document.getElementById("bracket-container").getBoundingClientRect();
+      const rectFrom = fromMatchup.getBoundingClientRect();
+      const rectTo = toMatchup.getBoundingClientRect();
+      let xFrom, xTo;
+      if (isRightSide) {
+        xFrom = rectFrom.left - containerRect.left;
+        xTo = rectTo.right - containerRect.left;
+      } else {
+        xFrom = rectFrom.right - containerRect.left;
+        xTo = rectTo.left - containerRect.left;
+      }
+      const yFrom = rectFrom.top + rectFrom.height / 2 - containerRect.top;
+      const yTo = rectTo.top + rectTo.height / 2 - containerRect.top;
+      drawSvgManhattanLine(xFrom, yFrom, xTo, yTo);
+    }
+
+    // Debounce resize events for performance
+    let resizeTimer;
+    window.addEventListener("resize", function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        drawAllConnectors();
+    }, 100); // Adjust delay as needed
+    });
+
+    // function to color the teams based on confidence
+    function getTeamColor(prob) {
+        // Convert probability to a hue on a red (0°) to green (120°) scale.
+        let hue = prob * 120;
+        // Adjust lightness: teams with near 50/50 get lighter colors.
+        let lightness = 50 + (1 - Math.abs(prob - 0.5) * 2) * 30;
+        // Return color with an alpha value (e.g., 0.5 for 50% opacity)
+        return `hsla(${hue}, 100%, ${lightness}%, 0.5)`;
+        }
+
+
+
+  </script>
 </body>
 </html>

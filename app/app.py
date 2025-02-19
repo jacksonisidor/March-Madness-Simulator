@@ -14,96 +14,70 @@ odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet")
 
 # function to format the bracket as nested list
 def format_bracket(results):
-
     num_rounds = 7  # rounds from 64 teams to a single champion
     bracket_structure = [[] for _ in range(num_rounds)]
 
     for _, row in results.iterrows():
-        round_index = int(round((np.log2(64 / row['current_round']))))  # convert to index
+        round_index = int(round(np.log2(64 / row['current_round'])))  # convert to index
 
-        # determine the actual winner
-        winner = 0 if row["prediction"] == 1 else 1  # 0 means team_1 won, 1 means team_2 won
+        # Determine the winner index (0 for team_1, 1 for team_2)
+        winner = 0 if row["prediction"] == 1 else 1
 
-        # store the matchup along with the winner index
-        matchup = [row['team_1'], row['team_2'], winner]
+        # Extract win probabilities from the DataFrame (assuming the columns are named 'p1' and 'p2')
+        p1 = row['win probability']
+        p2 = 1 - row['win probability']
+
+        # Create a matchup tuple with probabilities added
+        matchup = [row['team_1'], row['team_2'], p1, p2, winner]
         bracket_structure[round_index].append(matchup)
 
-    # extract the final winner from the last matchup
-    final_game = results[results['current_round'] == 2].iloc[0]  
-    final_matchup = bracket_structure[-2][0]  # get last game stored in bracket
+    # For the final round, you can derive the champion from the last stored matchup
+    final_game = results[results['current_round'] == 2].iloc[0]
+    final_matchup = bracket_structure[-2][0]  # last game in the bracket
     final_winner = final_matchup[0] if final_game['prediction'] == 1 else final_matchup[1]
+    # Optionally pass along the corresponding probability as well
+    final_p1 = final_matchup[2]
+    final_p2 = final_matchup[3]
 
-    # add the final winner as the last round
-    bracket_structure[-1].append([final_winner, "", 0])  # no opponent, default winner
-
+    # Add the final winner matchup; here p1 and p2 may not be needed, so you can set defaults
+    bracket_structure[-1].append([final_winner, "", final_p1, final_p2, 0])
+    
     return bracket_structure
 
 
-# function to format for jquery
-def format_bracket_for_jquery_bracket(results):
 
-    num_matchups = len(results[0])  # total matchups in the first round (32)
-    mid_point = num_matchups // 2   # split point (16 per side)
+def convert_bracket_format(simulation_output):
+    formatted_bracket = {"rounds": []}
+    num_rounds = len(simulation_output)
 
-    # separate top and bottom brackets (will be right and left visually)
-    top_teams = [[match[0], match[1]] for match in results[0][:mid_point]]
-    bottom_teams = [[match[0], match[1]] for match in results[0][mid_point:]]
+    for round_index, matchups in enumerate(simulation_output):
+        round_data = {"round": round_index + 1, "left": [], "right": []}
 
-    # store results separately
-    top_results = []
-    bottom_results = []
+        if round_index == 5 and len(matchups) == 1:
+            team1, team2, p1, p2, _ = matchups[0]
+            round_data["left"].append({"team1": team1, "team2": "", "p1": p1, "p2": p2, "winner": ""})
+            round_data["right"].append({"team1": "", "team2": team2, "p1": p1, "p2": p2, "winner": ""})
+        else:
+            mid_point = len(matchups) // 2
+            for i, match in enumerate(matchups):
+                team1, team2, p1, p2, winner_index = match
+                winner = team1 if winner_index == 0 else team2
 
-    # process the top half
-    advancing_top_teams = top_teams[:]  # copy initial teams for tracking progression
-    for round_idx, round_matches in enumerate(results[:-2]):  # exclude last 2 rounds (jquery formatting stuff)
-        top_round = []
-        next_advancing_top = []  # track advancing teams for next round
+                const_obj = {
+                    "team1": team1,
+                    "team2": team2,
+                    "p1": p1,
+                    "p2": p2,
+                    "winner": winner
+                }
 
-        for match in round_matches:
-            if len(match) == 3:  # ensure match contains winner flag
-                winner = match[2]
-                top_round.append([1, 0] if winner == 0 else [0, 1])
-                next_advancing_top.append(match[winner])  # store advancing team
-
-        advancing_top_teams = [next_advancing_top[i:i+2] for i in range(0, len(next_advancing_top), 2)]
-        top_results.append(top_round)
-
-    # process the bottom half (a little different because the reversal messed with everything)
-    advancing_bottom_teams = bottom_teams[:] 
-    for round_idx, round_matches in enumerate(results[:-2]):  # exclude last 2 rounds
-        bottom_round = []
-        next_advancing_bottom = []  # track advancing teams for next round
-
-        for match in round_matches:
-            if len(match) == 3:  # ensure match contains winner flag
-                team_1, team_2, winner = match
-                if [team_1, team_2] in advancing_bottom_teams or [team_2, team_1] in advancing_bottom_teams:
-                    bottom_round.append([1, 0] if winner == 0 else [0, 1])
-                    next_advancing_bottom.append(match[winner])  # store advancing team
-
-        advancing_bottom_teams = [next_advancing_bottom[i:i+2] for i in range(0, len(next_advancing_bottom), 2)]
-        bottom_results.append(bottom_round)
-
-    # ensure Final Four round exist
-    final_four = results[-2] if len(results) > 1 else []  # second to last round
-
-    # handle Final Four
-    final_four_results = []
-    final_four_teams = []
-
-    if len(final_four) > 0:
-        final_four_results.append([1, 0] if final_four[0][2] == 0 else [0, 1])
-        final_four_teams.append([final_four[0][0], final_four[0][1]])
-
-    if len(final_four) > 1:
-        final_four_results.append([1, 0] if final_four[1][2] == 0 else [0, 1])
-        final_four_teams.append([final_four[1][0], final_four[1][1]])
-
-    return {
-        "top_bracket": {"teams": top_teams, "results": [top_results]},
-        "bottom_bracket": {"teams": bottom_teams, "results": [bottom_results]},
-        "final_four_bracket": {"teams": final_four_teams, "results": [[final_four_results]]}
-    }
+                if i < mid_point:
+                    round_data["left"].append(const_obj)
+                else:
+                    round_data["right"].append(const_obj)
+        formatted_bracket["rounds"].append(round_data)
+        
+    return formatted_bracket
 
 
 
@@ -193,7 +167,7 @@ def results():
     percentile = session.get('percentile')
 
     # format the bracket for jquery
-    formatted_bracket = format_bracket_for_jquery_bracket(raw_results)
+    formatted_bracket = convert_bracket_format(raw_results)
 
     return render_template('results.html', selected_params=selected_params, 
                            results=raw_results, formatted_bracket=formatted_bracket,

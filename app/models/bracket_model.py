@@ -129,8 +129,8 @@ class BracketSimulator:
         matchups.loc[:, "win probability"] = probs[:, 1]
 
         # add a little normally distributed randomness for fun :)
-        #randomness = np.random.normal(0, 0.025)
-        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
+        randomness = np.random.normal(0, 0.025)
+        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
