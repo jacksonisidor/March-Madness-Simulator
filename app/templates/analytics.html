@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bracket Analytics</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #ced1d3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+    }
+    /* Position back button at the top left */
+    .back-button {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      font-size: 18px;
+      color: #007BFF;
+      text-decoration: none;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    .back-button:hover {
+      text-decoration: underline;
+    }
+    h1 {
+      color: #1F4DA3;
+    }
+    .content {
+      max-width: 800px;
+      width: 100%;
+      background-color: #f0f0f0;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    a {
+      color: #007BFF;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- Back Button: links back to the bracket results page -->
+  <a href="{{ url_for('results') }}" class="back-button">← Back to Bracket</a>
+  <h1>Bracket Analytics</h1>
+  <div class="content">
+    <h2>Against the Rest</h2>
+    <ul>
+      <li>{{ user_score }} out of {{ points_possible }} possible</li>
+      {% if public_user_avg is not none %}
+        <li>
+          {% set diff_avg = user_score - public_user_avg %}
+          {% if diff_avg < 0 %}
+            {{ diff_avg|abs }} points worse than the average user (per marchmadness.com)
+          {% else %}
+            {{ diff_avg }} points better than the average user (per marchmadness.com)
+          {% endif %}
+        </li>
+      {% endif %}
+      {% if seed_based_score is not none %}
+        <li>
+          {% set diff_seed = user_score - seed_based_score %}
+          {% if diff_seed < 0 %}
+            {{ diff_seed|abs }} points worse than just picking the best seed this year
+          {% else %}
+            {{ diff_seed }} points better than just picking the best seed this year
+          {% endif %}
+        </li>
+      {% endif %}
+    </ul>    
+    
+    {% if score_histogram %}
+        <img src="data:image/png;base64,{{ score_histogram }}" alt="Score Distribution">
+    {% else %}
+        <p>No data available.</p>
+    {% endif %}
+  </div>
+
+
+</body>
+</html>
