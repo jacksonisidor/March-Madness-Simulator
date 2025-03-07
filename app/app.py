@@ -21,19 +21,180 @@ odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet")
 upset_rates = pd.read_csv("data/upset_rates.csv")
 public_scores = pd.read_csv("data/public_bracket_scores.csv")
 
-# function to generate histogram and send out in html-readable format
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
-import base64
-from io import BytesIO
+# produce a bar chart of confidence per round
+def generate_confidence_bar_plot(bracket):
+    rounds = []
+    avg_confidences = []
+    
+    # loop through rounds
+    for i, round_matchups in enumerate(bracket, start=1):
+        if i == 7:
+            continue  # skip round 7 (not a real round, just the champion)
+        total_conf = 0.0
+        count = 0
+
+        # loop through matchups
+        for matchup in round_matchups:
+            conf_str = matchup[7]
+            if conf_str and conf_str.endswith("%"):
+                try:
+                    conf_val = float(conf_str.rstrip("%"))
+                    total_conf += conf_val
+                    count += 1
+                except ValueError:
+                    continue
+
+        # compute average confidence for the round
+        avg_conf = total_conf / count if count > 0 else 0
+        rounds.append(f"Round {i}")
+        avg_confidences.append(avg_conf)
+    
+    # create a bar plot for average confidence per round
+    fig, ax = plt.subplots(figsize=(6, 2))
+    ax.set_title("Average Confidence per Round", fontsize=12, pad=10)
+    bars = ax.bar(range(len(rounds)), avg_confidences, color="#1F4DA3")
+    
+    # Remove x and y ticks and spines.
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    
+    # Annotate each bar with the round number inside it.
+    for idx, bar in enumerate(bars):
+        height = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            height / 2,
+            f"Round\n{rounds[idx][-1]}",
+            ha='center',
+            va='center',
+            color='white',
+            fontsize=9
+        )
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            height + 2,  # adjust the offset as needed
+            f"{avg_confidences[idx]:.1f}%",
+            ha='center',
+            va='bottom',
+            color='#1F4DA3',
+            fontsize=9,
+            fontweight='bold'
+        )
+    
+    # Remove axis labels and frame.
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    ax.set_frame_on(False)
+    
+    # Convert the plot to a base64-encoded PNG image.
+    img = BytesIO()
+    plt.savefig(img, format="png", bbox_inches="tight", transparent=True)
+    plt.close(fig)
+    img.seek(0)
+    plot_url = base64.b64encode(img.getvalue()).decode("utf8")
+    
+    return plot_url
+
+# retrieve most and least confident predictions
+def get_confidence_stuff(bracket):
+    games = []
+    upsets = []
+    round_no = 0
+
+    for round_matchups in bracket:
+        round_no += 1
+        for matchup in round_matchups:
+            conf_str = matchup[7]
+            if conf_str and conf_str.endswith("%"):
+                try:
+                    conf_val = float(conf_str.rstrip("%"))
+                except ValueError:
+                    continue
+
+                # determine winner and loser based on the winner index
+                if matchup[4] == 0:
+                    winner_team = matchup[0]
+                    loser_team = matchup[1]
+                else:
+                    winner_team = matchup[1]
+                    loser_team = matchup[0]
+
+                game_text = f"{winner_team} beats {loser_team} (round: {round_no}): {conf_val:.1f}%"
+                games.append((conf_val, game_text))
+
+                # identify if it was an upset and store as a tuple as well
+                ## including 'unnaturally' picked upsets (forced by user)
+                if matchup[5] < matchup[6] and matchup[4] == 1:
+                    if matchup[3] > 0.5: # genuine prediction from model
+                        upsets.append((conf_val, game_text))
+                    else: # forced by user
+                        game_text = f"{winner_team} beats {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
+                        upsets.append((100 - conf_val, game_text))
+                elif matchup[5] > matchup[6] and matchup[4] == 0:
+                    if matchup[2] > 0.5: # genuine prediction from model
+                        upsets.append((conf_val, game_text))
+                    else: # forced by user
+                        game_text = f"{winner_team} beats {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
+                        upsets.append((100 - conf_val, game_text))
+    
+    # Get top 3 most confident games (highest confidence first)
+    games.sort(key=lambda x: x[0], reverse=True)
+    most_confident_games = [game[1] for game in games[:3]]
+    
+    # Get top 3 least confident games (lowest confidence first)
+    games.sort(key=lambda x: x[0])
+    least_confident_games = [game[1] for game in games[:3]]
+    
+    # Get top 3 most confident upsets (sorted descending)
+    upsets.sort(key=lambda x: x[0], reverse=True)
+    most_confident_upsets = [upset[1] for upset in upsets[:3]]
+    
+    return most_confident_games, least_confident_games, most_confident_upsets
+
+
+# generate a color based on confidence level
+def get_confidence_color(confidence_str):
+    try:
+        conf_float = float(confidence_str.strip('%')) / 100.0
+    except Exception:
+        conf_float = 0.5  # default value if conversion fails
+    hue = conf_float * 120
+    lightness = 50 + (1 - abs(conf_float - 0.5) * 2) * 30
+    return f"hsla({hue}, 100%, {lightness}%, 0.5)"
+
+# function to calculate the confidence level of a bracket
+def calculate_average_confidence(bracket):
+    total_conf = 0.0
+    count = 0
+
+    # iterate over each matchup within each round
+    for round_matchups in bracket:
+        for matchup in round_matchups:
+            conf_str = matchup[7]
+
+            # skip if confidence is empty (like in the championship round)
+            if conf_str and conf_str.endswith("%"):
+                try:
+                    conf_val = float(conf_str.rstrip("%"))
+                    total_conf += conf_val
+                    count += 1
+                except Exception:
+                    continue
+
+    if count > 0:
+        avg_conf = total_conf / count
+        return avg_conf
+    
+    return None
 
 # function to plot simulated scores
-def generate_score_distribution(user_score, sim_scores, public_user_avg=None, seed_based_score=None):
+def generate_score_distribution(user_score, sim_scores, public_user_avg=None):
 
     # set up plot
     bg_color = "#f0f0f0"
-    fig = plt.figure(figsize=(8, 5), facecolor=bg_color)
+    fig = plt.figure(figsize=(7, 4), facecolor=bg_color)
     ax = fig.add_subplot(111)
     ax.set_facecolor(bg_color)
 
@@ -67,14 +228,6 @@ def generate_score_distribution(user_score, sim_scores, public_user_avg=None, se
         y_avg = np.interp(public_user_avg, x_kde, y_kde)
         ax.text(public_user_avg + 10, y_avg + 0.0001, "User Avg", ha='left', va='center',
                 fontsize=10, color='blue')
-
-    # mark seed-based score
-    if seed_based_score is not None:
-        ax.axvline(seed_based_score, color='green', linestyle='dotted', linewidth=2,
-                   label='Seed Based Score', ymin=0, ymax=0.8)
-        y_seed = np.interp(seed_based_score, x_kde, y_kde)
-        ax.text(seed_based_score + 10, y_seed + 0.0001, "Seed-Based", ha='left', va='center',
-                fontsize=10, color='green')
 
     # clean up the y-axis and add labels
     ax.set_yticks([])
@@ -270,7 +423,7 @@ def analytics():
     selected_params = session.get('selected_params', {})
     year = selected_params.get('year', 2024)
     user_score = session.get('score', None)
-    results =  session.get('simulation_results', [])
+    bracket =  session.get('simulation_results', [])
     
     # get score info
     sim_scores = odds_sim_scores[odds_sim_scores["year"] == year]["score"].tolist()
@@ -282,19 +435,34 @@ def analytics():
 
     seed_based_score = round((public_scores.loc[public_scores.year == year, "seed_based_score"].iloc[0])*10)
     points_possible = 1920
-    score_hist_url = generate_score_distribution(user_score, sim_scores, public_user_avg, seed_based_score)
+    score_hist_url = generate_score_distribution(user_score, sim_scores, public_user_avg)
 
-    # get upset info
-
+    # get confidence info
+    confidence_level = calculate_average_confidence(bracket)
+    if confidence_level is not None:
+        confidence_level = f"{confidence_level:.1f}%"
+        confidence_color = get_confidence_color(confidence_level)
+    else:
+        confidence_level = "N/A"
+        confidence_color = "#ffffff"
+    most_confident, least_confident, confident_upsets = get_confidence_stuff(bracket)
+    confidence_bar_url = generate_confidence_bar_plot(bracket)
 
     return render_template('analytics.html', 
-                           distribution=sim_scores,
-                           user_score=user_score,
-                           bracket=results,
-                           public_user_avg=public_user_avg,
-                           seed_based_score=seed_based_score,
-                           points_possible=points_possible,
-                           score_histogram=score_hist_url)
+                            distribution=sim_scores,
+                            user_score=user_score,
+                            bracket=bracket,
+                            public_user_avg=public_user_avg,
+                            seed_based_score=seed_based_score,
+                            points_possible=points_possible,
+                            score_histogram=score_hist_url,
+                            confidence_level=confidence_level,
+                            confidence_color=confidence_color,
+                            most_confident_games=most_confident,
+                            least_confident_games=least_confident,
+                            confident_upsets=confident_upsets,
+                            confidence_bar_url=confidence_bar_url
+                        )
 
 
 # Run the app
