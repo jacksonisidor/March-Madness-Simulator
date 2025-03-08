@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bracket Analytics</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #ced1d3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+    }
+    /* Position back button at the top left */
+    .back-button {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      font-size: 18px;
+      color: #007BFF;
+      text-decoration: none;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    .back-button:hover {
+      text-decoration: underline;
+    }
+    h1 {
+      color: #1F4DA3;
+      margin-top: -5px;
+    }
+    /* Flex container for the two boxes */
+    .box-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+      margin-top: 20px;
+    }
+    /* Smaller content boxes */
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 45%;
+      background-color: #f0f0f0;
+      padding: 20px;
+      padding-top: 1px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    /* Override bullet list alignment within the content box */
+    .content ul {
+      text-align: left;
+      width: 100%;
+      margin: 0 auto 15px;
+      padding-left: 20px;
+    }
+    /* Left-align confidence text */
+    .left-align {
+      text-align: left;
+      width: 100%;
+      margin: 0;
+    }
+    a {
+      color: #007BFF;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- Back Button -->
+  <a href="{{ url_for('results') }}" class="back-button">← Back to Bracket</a>
+  <h1>Bracket Analytics</h1>
+  <div class="box-container">
+    <!-- First content box titled Against the Rest -->
+    <div class="content">
+      <h2>Against the Rest</h2>
+      {% if user_score %}
+        <ul>
+          <li>{{ user_score }} out of {{ points_possible }} possible points</li>
+          {% if public_user_avg is not none %}
+            <li>
+              {% set diff_avg = user_score - public_user_avg %}
+              {% if diff_avg < 0 %}
+                {{ diff_avg|abs }} points worse than the average user (per marchmadness.com)
+              {% else %}
+                {{ diff_avg }} points better than the average user (per marchmadness.com)
+              {% endif %}
+            </li>
+          {% endif %}
+          {% if seed_based_score is not none %}
+            <li>
+              {% set diff_seed = user_score - seed_based_score %}
+              {% if diff_seed < 0 %}
+                {{ diff_seed|abs }} points worse than just picking the top seed
+              {% else %}
+                {{ diff_seed }} points better than just picking the top seed
+              {% endif %}
+            </li>
+          {% endif %}
+        </ul>
+        {% if score_histogram %}
+          <img src="data:image/png;base64,{{ score_histogram }}" alt="Score Distribution">
+        {% else %}
+          <p>No data available.</p>
+        {% endif %}
+      {% else %}
+        <p>Come back when the tournament ends for score-related stats!</p>
+      {% endif %}
+    </div>
+    <!-- Second content box titled Confidence -->
+  <div class="content">
+    <h2>Confidence</h2>
+    <p class="center-align" style="padding: 5px; margin-top: -10px; margin-bottom: 2px;">
+      Overall Confidence:
+      <span style="background-color: {{ confidence_color }}; padding: 5px; border-radius: 4px; font-weight: bold;">
+        {{ confidence_level }}
+      </span>
+    </p>
+      
+    {% if most_confident_games %}
+    <p class="left-align">
+      <strong>Most Confident Games</strong>
+    </p>
+    <ul class="left-align">
+      {% for game in most_confident_games %}
+        <li>{{ game }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    
+    {% if least_confident_games %}
+    <p class="left-align">
+      <strong>Least Confident Games</strong>
+    </p>
+      <ul class="left-align">
+        {% for game in least_confident_games %}
+          <li>{{ game }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if confident_upsets %}
+    <p class="left-align">
+      <strong>Most Confident Upsets</strong>
+    </p>
+    <ul class="left-align">
+      {% for upset in confident_upsets %}
+        <li>{{ upset }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <img src="data:image/png;base64,{{ confidence_bar_url }}" alt="Confidence per Round">
+  </div> 
+  </div>
+</body>
+</html>
+

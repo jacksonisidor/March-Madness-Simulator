@@ -227,18 +227,20 @@
   <div class="fixed-width-container">
     <!-- Score Display -->
     <div id="score-container">
-        {% if score %}
-        <p>Your bracket scored <strong>{{ score }} points</strong>
+      {% if score %}
+      <p>Your bracket scored <strong>{{ score }} points</strong>
         {% if percentile %}
-            (<span class="percentile-container">{{ percentile }} percentile
+          (<span class="percentile-container">{{ percentile }} percentile
             <span class="help-icon" data-tooltip="Compared to 10,000 simulations based on historical seed-based odds">?</span>
-            </span>)
+          </span>)
         {% endif %}
-        </p>
-        {% else %}
-        <p>Results will be updated when games are completed!</p>
-        {% endif %}
+      </p>
+      {% else %}
+      <p>Results will be updated when games are completed!</p>
+      {% endif %}
+      <p><a href="{{ url_for('analytics') }}">See more stats</a></p>
     </div>
+    
 
     <div class="legend">
         <span class="legend-label">Low Confidence</span>
@@ -288,6 +290,7 @@
   <script>
     // Convert the Python object to JSON
     const bracketData = JSON.parse('{{ formatted_bracket|tojson|safe }}');
+    console.log("Bracket Data:", bracketData);
     // Helpers to map round numbers to DOM IDs
     function getLeftRoundId(roundNum) {
       switch(roundNum) {
