@@ -18,7 +18,7 @@ app.secret_key = 'BBallSim'
 # Read in data
 data = pd.read_parquet("data/all_matchup_stats.parquet")
 odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet")
-upset_rates = pd.read_csv("data/upset_rates.csv")
+upset_counts = pd.read_csv("data/upset_counts.csv")
 public_scores = pd.read_csv("data/public_bracket_scores.csv")
 
 # produce a bar chart of confidence per round
@@ -116,12 +116,16 @@ def get_confidence_stuff(bracket):
                 # determine winner and loser based on the winner index
                 if matchup[4] == 0:
                     winner_team = matchup[0]
+                    winner_seed = round(matchup[5])
                     loser_team = matchup[1]
+                    loser_seed = round(matchup[6])
                 else:
                     winner_team = matchup[1]
+                    winner_seed = round(matchup[6])
                     loser_team = matchup[0]
+                    loser_seed = round(matchup[5])
 
-                game_text = f"{winner_team} beats {loser_team} (round: {round_no}): {conf_val:.1f}%"
+                game_text = f"{winner_seed}. {winner_team} beats {loser_seed}. {loser_team} (round: {round_no}): {conf_val:.1f}%"
                 games.append((conf_val, game_text))
 
                 # identify if it was an upset and store as a tuple as well
@@ -130,13 +134,13 @@ def get_confidence_stuff(bracket):
                     if matchup[3] > 0.5: # genuine prediction from model
                         upsets.append((conf_val, game_text))
                     else: # forced by user
-                        game_text = f"{winner_team} beats {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
+                        game_text = f"{winner_seed}. {winner_team} beats {loser_seed}. {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
                         upsets.append((100 - conf_val, game_text))
                 elif matchup[5] > matchup[6] and matchup[4] == 0:
                     if matchup[2] > 0.5: # genuine prediction from model
                         upsets.append((conf_val, game_text))
                     else: # forced by user
-                        game_text = f"{winner_team} beats {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
+                        game_text = f"{winner_seed}. {winner_team} beats {loser_seed}. {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
                         upsets.append((100 - conf_val, game_text))
     
     # Get top 3 most confident games (highest confidence first)
@@ -346,7 +350,7 @@ def get_teams(year):
     tournament_teams = data[(data["year"] == year) & (data["type"] == "T")]
     unique_teams = sorted(set(tournament_teams["team_1"].tolist() + tournament_teams["team_2"].tolist()))
     
-    return jsonify(["None"] + unique_teams)  # Send JSON response
+    return jsonify(["None"] + unique_teams)
 
 
 # Roate for simulation
@@ -426,16 +430,19 @@ def analytics():
     bracket =  session.get('simulation_results', [])
     
     # get score info
-    sim_scores = odds_sim_scores[odds_sim_scores["year"] == year]["score"].tolist()
-    public_user_avg = public_scores.loc[public_scores.year == year, "avg_user_score"].iloc[0]
-    if np.isnan(public_user_avg):
-        public_user_avg = None
-    else:
-        public_user_avg = round(public_user_avg * 10)
+    if user_score:
+        sim_scores = odds_sim_scores[odds_sim_scores["year"] == year]["score"].tolist()
+        public_user_avg = public_scores.loc[public_scores.year == year, "avg_user_score"].iloc[0]
+        if np.isnan(public_user_avg):
+            public_user_avg = None
+        else:
+            public_user_avg = round(public_user_avg * 10)
 
-    seed_based_score = round((public_scores.loc[public_scores.year == year, "seed_based_score"].iloc[0])*10)
-    points_possible = 1920
-    score_hist_url = generate_score_distribution(user_score, sim_scores, public_user_avg)
+        seed_based_score = round((public_scores.loc[public_scores.year == year, "seed_based_score"].iloc[0])*10)
+        points_possible = 1920
+        score_hist_url = generate_score_distribution(user_score, sim_scores, public_user_avg)
+    else:
+        score_hist_url = None
 
     # get confidence info
     confidence_level = calculate_average_confidence(bracket)

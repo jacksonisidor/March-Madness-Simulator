@@ -29,6 +29,7 @@
     }
     h1 {
       color: #1F4DA3;
+      margin-top: -5px;
     }
     /* Flex container for the two boxes */
     .box-container {
@@ -47,6 +48,7 @@
       width: 45%;
       background-color: #f0f0f0;
       padding: 20px;
+      padding-top: 1px;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       text-align: center;
@@ -82,33 +84,37 @@
     <!-- First content box titled Against the Rest -->
     <div class="content">
       <h2>Against the Rest</h2>
-      <ul>
-        <li>{{ user_score }} out of {{ points_possible }} possible points</li>
-        {% if public_user_avg is not none %}
-          <li>
-            {% set diff_avg = user_score - public_user_avg %}
-            {% if diff_avg < 0 %}
-              {{ diff_avg|abs }} points worse than the average user (per marchmadness.com)
-            {% else %}
-              {{ diff_avg }} points better than the average user (per marchmadness.com)
-            {% endif %}
-          </li>
+      {% if user_score %}
+        <ul>
+          <li>{{ user_score }} out of {{ points_possible }} possible points</li>
+          {% if public_user_avg is not none %}
+            <li>
+              {% set diff_avg = user_score - public_user_avg %}
+              {% if diff_avg < 0 %}
+                {{ diff_avg|abs }} points worse than the average user (per marchmadness.com)
+              {% else %}
+                {{ diff_avg }} points better than the average user (per marchmadness.com)
+              {% endif %}
+            </li>
+          {% endif %}
+          {% if seed_based_score is not none %}
+            <li>
+              {% set diff_seed = user_score - seed_based_score %}
+              {% if diff_seed < 0 %}
+                {{ diff_seed|abs }} points worse than just picking the top seed
+              {% else %}
+                {{ diff_seed }} points better than just picking the top seed
+              {% endif %}
+            </li>
+          {% endif %}
+        </ul>
+        {% if score_histogram %}
+          <img src="data:image/png;base64,{{ score_histogram }}" alt="Score Distribution">
+        {% else %}
+          <p>No data available.</p>
         {% endif %}
-        {% if seed_based_score is not none %}
-          <li>
-            {% set diff_seed = user_score - seed_based_score %}
-            {% if diff_seed < 0 %}
-              {{ diff_seed|abs }} points worse than just picking the top seed
-            {% else %}
-              {{ diff_seed }} points better than just picking the top seed
-            {% endif %}
-          </li>
-        {% endif %}
-      </ul>
-      {% if score_histogram %}
-        <img src="data:image/png;base64,{{ score_histogram }}" alt="Score Distribution">
       {% else %}
-        <p>No data available.</p>
+        <p>Come back when the tournament ends for score-related stats!</p>
       {% endif %}
     </div>
     <!-- Second content box titled Confidence -->
@@ -142,7 +148,7 @@
         {% endfor %}
       </ul>
     {% endif %}
-    {% if least_confident_games %}
+    {% if confident_upsets %}
     <p class="left-align">
       <strong>Most Confident Upsets</strong>
     </p>
