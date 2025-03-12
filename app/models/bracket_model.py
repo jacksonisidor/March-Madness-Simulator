@@ -77,47 +77,74 @@ class BracketSimulator:
         self.predicted_bracket = pd.concat([predictions, self.predicted_bracket], ignore_index=True)
 
     
-
     def train_model(self, training_data):
+
+        # define feature importance multipliers for different playstyles
+        weight_multiplier = 1  
+        feature_weights = {
+            "Offensive-Minded": {
+                'badj_o_diff': weight_multiplier, 'efg_diff': weight_multiplier, 'ft_rate_diff': weight_multiplier, 
+                '3p_percent_diff': weight_multiplier, '3p_rate_diff': weight_multiplier, '2p_percent_diff': weight_multiplier
+            },
+            "Defense Wins": {
+                'badj_d_diff': weight_multiplier, 'efg_d_diff': weight_multiplier, 'ft_rate_d_diff': weight_multiplier, 
+                'tov_percent_d_diff': weight_multiplier, '3p_percent_d_diff': weight_multiplier, '2p_percent_d_diff': weight_multiplier
+            },
+            "Balanced": {'2p_percent_d_diff': 0, '3p_percent_d_diff': 0}  # No extra weighting
+        }
+
+        # define all predictors
+        predictors = [
+            'badj_em_diff', 'badj_o_diff', 'badj_d_diff', 'wab_diff', 'barthag_diff',
+            'efg_diff', 'efg_d_diff', 'ft_rate_diff', 'ft_rate_d_diff', 
+            'tov_percent_diff', 'tov_percent_d_diff', 'adj_tempo_diff', 
+            '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 'exp_diff', 
+            'eff_hgt_diff', 'talent_diff', 'elite_sos_diff', 'win_percent_diff',
+            '3p_percent_d_diff', '2p_percent_d_diff'
+        ]
+
+        # apply feature weights
+        training_data = training_data.copy()
+        for feature, weight in feature_weights.get(self.playstyle, {}).items():
+            if feature in training_data.columns:
+                training_data[feature] = training_data[feature] * weight 
+
+        # initialize sample weights to 1 (base weight)
+        training_data["weight"] = 1.0  
+
+        # apply dynamic sample weights based on playstyle
         
-        # set predictors based on the the user's selected playstyle
+        # weight games where the offensive gap is bigger than the defensive gap
         if self.playstyle == "Offensive-Minded":
-            predictors = [
-                        'badj_o_diff', 'efg_diff', 'ft_rate_diff', 'tov_percent_diff', 
-                        'adj_tempo_diff', '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 
-                        'elite_sos_diff'
-                        ]
-        
+            training_data["weight"] *= (1 + (abs(training_data["badj_o_diff"]) - abs(training_data["badj_d_diff"])).clip(lower=0))
+
+        # weight games where the defensive gap is bigger than the offensive gap
         elif self.playstyle == "Defense Wins":
-            predictors = [
-                        'badj_d_diff', 'efg_d_diff', 'ft_rate_d_diff', 'tov_percent_d_diff', 
-                        'adj_tempo_diff', '3p_percent_d_diff', '2p_percent_d_diff', 
-                        'elite_sos_diff'
-                        ]
-        
-        else:
-            predictors = [
-                            'badj_em_diff', 'badj_o_diff', 'badj_d_diff', 'wab_diff', 'barthag_diff',
-                            'efg_diff', 'efg_d_diff', 'ft_rate_diff', 'ft_rate_d_diff', 
-                            'tov_percent_diff', 'tov_percent_d_diff', 'adj_tempo_diff', 
-                            '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 'exp_diff', 
-                            'eff_hgt_diff', 'talent_diff', 'elite_sos_diff', 'win_percent_diff'
-                            ]
+            training_data["weight"] *= (1 + (abs(training_data["badj_d_diff"]) - abs(training_data["badj_o_diff"])).clip(lower=0))
 
-        model = XGBClassifier(n_estimators=100,
-                                    max_depth=5,
-                                    learning_rate=0.2,
-                                    subsample=0.9,
-                                    colsample_bytree=1,
-                                    gamma=5,
-                                    random_state=44
-                                )
+        # apply further weight to tournament games
+        training_data["weight"] *= training_data["type"].map({"T": 5, "RS": 1}).fillna(1)
 
-        training_data["weight"] = training_data["type"].map({"T": 5, "RS": 1})
-        model.fit(training_data[predictors], training_data["winner"], sample_weight=training_data["weight"])
+        # ensure weights are always positive and non-zero
+        training_data["weight"] = training_data["weight"].clip(lower=0.01).fillna(0.01)
+
+        # train the model
+        model = XGBClassifier(
+            n_estimators=100,
+            max_depth=5,
+            learning_rate=0.2,
+            subsample=0.9,
+            colsample_bytree=1,
+            gamma=5,
+            random_state=44
+        )
+
+        # fit the model
+        model.fit(training_data[predictors], 
+                training_data["winner"], 
+                sample_weight=training_data["weight"])
 
         return model, predictors
-    
 
     def predict_games(self, model, matchups, predictors):
 
@@ -129,8 +156,8 @@ class BracketSimulator:
         matchups.loc[:, "win probability"] = probs[:, 1]
 
         # add a little normally distributed randomness for fun :)
-        #randomness = np.random.normal(0, 0.025)
-        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
+        randomness = np.random.normal(0, 0.025)
+        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
