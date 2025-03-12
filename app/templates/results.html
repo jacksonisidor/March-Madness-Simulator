@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Simulation Results</title>
   <style>
-    /* General Layout */
+    
     body {
       font-family: Arial, sans-serif;
       display: flex;
@@ -14,7 +14,6 @@
       overflow: auto;
       background-color: #ced1d3;
     }
-    /* Back Button */
     .back-button {
       align-self: flex-start;
       display: inline-flex;
@@ -32,7 +31,7 @@
       font-size: 22px;
       margin-right: 8px;
     }
-    /* Score Container */
+
     #score-container {
       text-align: center;
       font-size: 20px;
@@ -40,7 +39,7 @@
       margin-bottom: 20px;
       margin-top: 50px;
     }
-    /* Help Icon */
+    
     .percentile-container {
       display: inline-flex;
       align-items: center;
@@ -84,6 +83,7 @@
       opacity: 1;
       visibility: visible;
     }
+
     .bracket-container {
       align-self: flex-start;
       display: flex;
@@ -133,6 +133,7 @@
     }
 
     .bracket-team {
+      position: relative;
       box-sizing: border-box;
       background-color: #f0f0f0;
       border: 1px solid black;
@@ -159,6 +160,7 @@
       transform: translateX(30%);
       font-weight: bold;
     }
+
     #champion-team {
       background: gold;
       font-weight: bold;
@@ -169,14 +171,10 @@
       text-align: center;
       display: inline-block;
     }
-
     .bracket-team.highlight {
         box-shadow: 0 0 8px 3px rgba(32, 187, 32, 0.8);
         border: 2px solid #3acf3a;
         }
-
-
-    /* Highlight styles for dynamic highlighting */
     .highlight {
       background-color: #a8e6a1; /* light green */
       border: 1px solid green;
@@ -185,7 +183,6 @@
       stroke: green;
       stroke-width: 3;
     }
-
     .legend {
         display: flex;
         align-items: center;
@@ -193,38 +190,72 @@
         margin: 100px 0;
         margin-bottom: -130px;
     }
-
-        .legend-label {
+    .legend-label {
         font-size: 14px;
         margin: 0 10px;
-        }
-
-        .color-scale {
+    }
+    .color-scale {
         width: 200px;
         height: 20px;
         background: linear-gradient(to right, hsla(0, 100%, 70%, 0.5), hsla(120, 100%, 50%, 0.5));
         border: 1px solid #ccc;
         border-radius: 4px;
-        }
-
-        .fixed-width-container {
+    }
+    .fixed-width-container {
         width: 95vw;
         max-width: 1400px;
         min-width: 1400px; /* ensures no resizing */
         margin: 0 auto; /* center it */
-        }
+    }
 
+    .bracket-team:hover::after {
+      content: attr(data-confidence);
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 110%;
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 1000;
+    }
 
+    #randomness-note {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 12.5px;
+      color: #555;
+      background-color: #f0f0f0;
+      padding: 5px 10px;
+      border-radius: 4px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      text-align: left;
+      margin: 0;
+      max-width: 450px;
+    }
 
-        </style>
+  </style>
+
 </head>
 <body>
+
+  <div id="randomness-note">
+    Note: Win probabilities include normally distributed randomness (std = 0.025) to simulate real-world uncertainty... and so you don't all get the same bracket :)
+  </div>
+
   <!-- Back Button -->
   <a href="/" class="back-button">
     <span class="arrow">←</span> Run Another Simulation
   </a>
   
   <div class="fixed-width-container">
+
     <!-- Score Display -->
     <div id="score-container">
       {% if score %}
@@ -241,7 +272,7 @@
       <p><a href="{{ url_for('analytics') }}">See more stats</a></p>
     </div>
     
-
+    <!-- Confidence Legend -->
     <div class="legend">
         <span class="legend-label">Low Confidence</span>
         <div class="color-scale"></div>
@@ -251,8 +282,10 @@
 
   <!-- Bracket Structure -->
   <div class="bracket-container" id="bracket-container" style="position: relative;">
+
     <!-- SVG overlay for connector lines -->
     <svg id="svg-connector" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></svg>
+
     <!-- LEFT SIDE -->
     <div class="bracket-column">
       <div class="bracket-round" id="round-64-left"></div>
@@ -261,10 +294,12 @@
       <div class="bracket-round" id="elite-8-left"></div>
       <div class="bracket-round" id="final-four-left"></div>
     </div>
+
     <!-- Final left (Championship entrant) -->
     <div class="bracket-column">
       <div class="bracket-round championship-entrant" id="championship-entrant-left"></div>
     </div>
+
     <!-- Championship Centered Winner Box -->
     <div id="championship-container">
       <div class="bracket-round" id="championship">
@@ -273,10 +308,12 @@
         </div>
       </div>
     </div>
+    
     <!-- Final right (Championship entrant) -->
     <div class="bracket-column">
       <div class="bracket-round championship-entrant" id="championship-entrant-right"></div>
     </div>
+
     <!-- RIGHT SIDE -->
     <div class="bracket-column">
       <div class="bracket-round" id="final-four-right"></div>
@@ -286,12 +323,15 @@
       <div class="bracket-round" id="round-64-right"></div>
     </div>
   </div>
+
   <!-- Populate the bracket with teams -->
   <script>
+
     // Convert the Python object to JSON
     const bracketData = JSON.parse('{{ formatted_bracket|tojson|safe }}');
     console.log("Bracket Data:", bracketData);
-    // Helpers to map round numbers to DOM IDs
+
+    // map round numbers
     function getLeftRoundId(roundNum) {
       switch(roundNum) {
         case 1: return "round-64-left";
@@ -316,93 +356,96 @@
     }
     // Populate the bracket using the formatted data
     function populateBracket(data) {
-  data.rounds.forEach(rObj => {
-    const roundNumber = rObj.round;
-    const leftSide = rObj.left || [];
-    const rightSide = rObj.right || [];
+      data.rounds.forEach(rObj => {
+        const roundNumber = rObj.round;
+        const leftSide = rObj.left || [];
+        const rightSide = rObj.right || [];
 
-    // LEFT SIDE
-    const leftRoundDiv = document.getElementById(getLeftRoundId(roundNumber));
-    if (leftRoundDiv) {
-      leftRoundDiv.innerHTML = "";
-      leftSide.forEach(matchup => {
-        const matchupDiv = document.createElement("div");
-        matchupDiv.classList.add("bracket-matchup");
+      // LEFT SIDE
+      const leftRoundDiv = document.getElementById(getLeftRoundId(roundNumber));
+      if (leftRoundDiv) {
+        leftRoundDiv.innerHTML = "";
+        leftSide.forEach(matchup => {
+          const matchupDiv = document.createElement("div");
+          matchupDiv.classList.add("bracket-matchup");
 
-        // Check if it's a single team box (e.g., bye situation)
-        if (!matchup.team2 || matchup.team2.trim() === "") {
-          const singleDiv = document.createElement("div");
-          singleDiv.classList.add("bracket-team");
-          singleDiv.textContent = matchup.team1;
-          singleDiv.setAttribute("data-team", matchup.team1);
-          // Set color using p1
-          singleDiv.style.backgroundColor = getTeamColor(matchup.p1);
-          matchupDiv.appendChild(singleDiv);
-        } else {
-          const team1Div = document.createElement("div");
-          team1Div.classList.add("bracket-team");
-          team1Div.textContent = matchup.team1;
-          team1Div.setAttribute("data-team", matchup.team1);
-          // Color team1 using its win probability (p1)
-          team1Div.style.backgroundColor = getTeamColor(matchup.p1);
+          // Single-team situation (bye)
+          if (!matchup.team2 || matchup.team2.trim() === "") {
+            const singleDiv = document.createElement("div");
+            singleDiv.classList.add("bracket-team");
+            singleDiv.textContent = matchup.team1;
+            singleDiv.setAttribute("data-team", matchup.team1);
+            singleDiv.style.backgroundColor = getTeamColor(matchup.p1);
+            singleDiv.setAttribute('data-confidence', `${(matchup.p1 * 100).toFixed(1)}%`);
+            matchupDiv.appendChild(singleDiv);
+          } else {
+            const team1Div = document.createElement("div");
+            team1Div.classList.add("bracket-team");
+            team1Div.textContent = matchup.team1;
+            team1Div.setAttribute("data-team", matchup.team1);
+            team1Div.style.backgroundColor = getTeamColor(matchup.p1);
+            team1Div.setAttribute('data-confidence', `${(matchup.p1 * 100).toFixed(1)}%`);
 
-          const team2Div = document.createElement("div");
-          team2Div.classList.add("bracket-team");
-          team2Div.textContent = matchup.team2;
-          team2Div.setAttribute("data-team", matchup.team2);
-          // Color team2 using its win probability (p2)
-          team2Div.style.backgroundColor = getTeamColor(matchup.p2);
+            const team2Div = document.createElement("div");
+            team2Div.classList.add("bracket-team");
+            team2Div.textContent = matchup.team2;
+            team2Div.setAttribute("data-team", matchup.team2);
+            team2Div.style.backgroundColor = getTeamColor(matchup.p2);
+            team2Div.setAttribute('data-confidence', `${(matchup.p2 * 100).toFixed(1)}%`);
 
-          matchupDiv.appendChild(team1Div);
-          matchupDiv.appendChild(team2Div);
-        }
-        leftRoundDiv.appendChild(matchupDiv);
+            matchupDiv.appendChild(team1Div);
+            matchupDiv.appendChild(team2Div);
+          }
+          leftRoundDiv.appendChild(matchupDiv);
+        });
+      }
+
+      // RIGHT SIDE
+      const rightRoundDiv = document.getElementById(getRightRoundId(roundNumber));
+      if (rightRoundDiv) {
+        rightRoundDiv.innerHTML = "";
+        rightSide.forEach(matchup => {
+          const matchupDiv = document.createElement("div");
+          matchupDiv.classList.add("bracket-matchup");
+
+          if (!matchup.team1 || matchup.team1.trim() === "") {
+            const singleDiv = document.createElement("div");
+            singleDiv.classList.add("bracket-team");
+            singleDiv.textContent = matchup.team2;
+            singleDiv.setAttribute("data-team", matchup.team2);
+            singleDiv.style.backgroundColor = getTeamColor(matchup.p2);
+            singleDiv.setAttribute('data-confidence', `${(matchup.p2 * 100).toFixed(1)}%`);
+            matchupDiv.appendChild(singleDiv);
+          } else {
+            const team1Div = document.createElement("div");
+            team1Div.classList.add("bracket-team");
+            team1Div.textContent = matchup.team1;
+            team1Div.setAttribute("data-team", matchup.team1);
+            team1Div.style.backgroundColor = getTeamColor(matchup.p1);
+            team1Div.setAttribute('data-confidence', `${(matchup.p1 * 100).toFixed(1)}%`);
+
+            const team2Div = document.createElement("div");
+            team2Div.classList.add("bracket-team");
+            team2Div.textContent = matchup.team2;
+            team2Div.setAttribute("data-team", matchup.team2);
+            team2Div.style.backgroundColor = getTeamColor(matchup.p2);
+            team2Div.setAttribute('data-confidence', `${(matchup.p2 * 100).toFixed(1)}%`);
+
+            matchupDiv.appendChild(team1Div);
+            matchupDiv.appendChild(team2Div);
+          }
+          rightRoundDiv.appendChild(matchupDiv);
       });
     }
 
-    // RIGHT SIDE
-    const rightRoundDiv = document.getElementById(getRightRoundId(roundNumber));
-    if (rightRoundDiv) {
-      rightRoundDiv.innerHTML = "";
-      rightSide.forEach(matchup => {
-        const matchupDiv = document.createElement("div");
-        matchupDiv.classList.add("bracket-matchup");
+      // Set champion if available
+      if (roundNumber === 7 && rightSide.length > 0) {
+        const champion = rightSide[0].winner || "";
+        document.getElementById("champion-team").textContent = "🏆 " + champion + " 🏆";
+      }
+    });
+  } 
 
-        if (!matchup.team1 || matchup.team1.trim() === "") {
-          const singleDiv = document.createElement("div");
-          singleDiv.classList.add("bracket-team");
-          singleDiv.textContent = matchup.team2;
-          singleDiv.setAttribute("data-team", matchup.team2);
-          // For a single box, use p2
-          singleDiv.style.backgroundColor = getTeamColor(matchup.p2);
-          matchupDiv.appendChild(singleDiv);
-        } else {
-          const team1Div = document.createElement("div");
-          team1Div.classList.add("bracket-team");
-          team1Div.textContent = matchup.team1;
-          team1Div.setAttribute("data-team", matchup.team1);
-          team1Div.style.backgroundColor = getTeamColor(matchup.p1);
-
-          const team2Div = document.createElement("div");
-          team2Div.classList.add("bracket-team");
-          team2Div.textContent = matchup.team2;
-          team2Div.setAttribute("data-team", matchup.team2);
-          team2Div.style.backgroundColor = getTeamColor(matchup.p2);
-
-          matchupDiv.appendChild(team1Div);
-          matchupDiv.appendChild(team2Div);
-        }
-        rightRoundDiv.appendChild(matchupDiv);
-      });
-    }
-
-    // If round 7 exists, set champion
-    if (roundNumber === 7 && rightSide.length > 0) {
-      const champion = rightSide[0].winner || "";
-      document.getElementById("champion-team").textContent = "🏆 " + champion + " 🏆";
-    }
-  });
-}
 
     // Add dynamic highlighting to team boxes and connector lines
     function addHighlighting() {
@@ -538,14 +581,12 @@
     function getTeamColor(prob) {
         // Convert probability to a hue on a red (0°) to green (120°) scale.
         let hue = prob * 120;
-        // Adjust lightness: teams with near 50/50 get lighter colors.
+        // Adjust lightness: teams with near 50/50 get lighter colors
         let lightness = 50 + (1 - Math.abs(prob - 0.5) * 2) * 30;
         // Return color with an alpha value (e.g., 0.5 for 50% opacity)
         return `hsla(${hue}, 100%, ${lightness}%, 0.5)`;
-        }
-
-
-
+   }
   </script>
+  
 </body>
 </html>
