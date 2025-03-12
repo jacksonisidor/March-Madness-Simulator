@@ -9,6 +9,16 @@ import seaborn as sns
 matplotlib.use('Agg')
 from io import BytesIO
 import base64
+import psutil, os, tracemalloc
+
+# Start tracemalloc for detailed memory snapshots
+tracemalloc.start()
+
+# Function to log current memory usage
+def log_memory_usage(tag):
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss / (1024 * 1024)
+    print(f"[MEMORY] {tag}: {mem:.2f} MB")
 
 # Use conditional import for BracketSimulator:
 try:
@@ -147,29 +157,28 @@ def get_confidence_stuff(bracket):
                 games.append((conf_val, game_text))
 
                 # identify if it was an upset and store as a tuple as well
-                ## including 'unnaturally' picked upsets (forced by user)
                 if matchup[5] < matchup[6] and matchup[4] == 1:
-                    if matchup[3] > 0.5:  # genuine prediction from model
+                    if matchup[3] > 0.5:
                         upsets.append((conf_val, game_text))
-                    else:  # forced by user
+                    else:
                         game_text = f"{winner_seed}. {winner_team} beats {loser_seed}. {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
                         upsets.append((100 - conf_val, game_text))
                 elif matchup[5] > matchup[6] and matchup[4] == 0:
-                    if matchup[2] > 0.5:  # genuine prediction from model
+                    if matchup[2] > 0.5:
                         upsets.append((conf_val, game_text))
-                    else:  # forced by user
+                    else:
                         game_text = f"{winner_seed}. {winner_team} beats {loser_seed}. {loser_team} (round: {round_no}): {100-conf_val:.1f}%"
                         upsets.append((100 - conf_val, game_text))
     
-    # Get top 3 most confident games (highest confidence first)
+    # Get top 3 most confident games
     games.sort(key=lambda x: x[0], reverse=True)
     most_confident_games = [game[1] for game in games[:3]]
     
-    # Get top 3 least confident games (lowest confidence first)
+    # Get top 3 least confident games
     games.sort(key=lambda x: x[0])
     least_confident_games = [game[1] for game in games[:3]]
     
-    # Get top 3 most confident upsets (sorted descending)
+    # Get top 3 most confident upsets
     upsets.sort(key=lambda x: x[0], reverse=True)
     most_confident_upsets = [upset[1] for upset in upsets[:3]]
     
@@ -180,7 +189,7 @@ def get_confidence_color(confidence_str):
     try:
         conf_float = float(confidence_str.strip('%')) / 100.0
     except Exception:
-        conf_float = 0.5  # default value if conversion fails
+        conf_float = 0.5
     hue = conf_float * 120
     lightness = 50 + (1 - abs(conf_float - 0.5) * 2) * 30
     return f"hsla({hue}, 100%, {lightness}%, 0.5)"
@@ -189,8 +198,6 @@ def get_confidence_color(confidence_str):
 def calculate_average_confidence(bracket):
     total_conf = 0.0
     count = 0
-
-    # iterate over each matchup within each round
     for round_matchups in bracket:
         for matchup in round_matchups:
             conf_str = matchup[7]
@@ -201,11 +208,9 @@ def calculate_average_confidence(bracket):
                     count += 1
                 except Exception:
                     continue
-
     if count > 0:
         avg_conf = total_conf / count
         return avg_conf
-    
     return None
 
 # function to plot simulated scores
@@ -260,13 +265,12 @@ def generate_score_distribution(user_score, sim_scores, public_user_avg=None):
     
     return plot_url
 
-# function to format the bracket as nested list (primarily for analysis)
+# function to format the bracket as nested list (for analysis)
 def format_bracket(results):
-    num_rounds = 7  # rounds from 64 teams to a single champion
+    num_rounds = 7
     bracket_structure = [[] for _ in range(num_rounds)]
-
     for _, row in results.iterrows():
-        round_index = int(round(np.log2(64 / row['current_round'])))  # convert round number to index
+        round_index = int(round(np.log2(64 / row['current_round'])))
         winner = 0 if row["prediction"] == 1 else 1
         p1 = row['win probability']
         p2 = 1 - p1  
@@ -275,23 +279,19 @@ def format_bracket(results):
         seed_2 = row['seed_2']
         matchup = [row['team_1'], row['team_2'], p1, p2, winner, seed_1, seed_2, confidence]
         bracket_structure[round_index].append(matchup)
-
     final_game = results[results['current_round'] == 2].iloc[0]
     final_matchup = bracket_structure[-2][0]
     final_winner = final_matchup[0] if final_game['prediction'] == 1 else final_matchup[1]
     bracket_structure[-1].append([final_winner, "", "", "", 0, "", "", ""])
-
     return bracket_structure
 
 # function to convert bracket to a dictionary for rendering the template
 def convert_bracket_format(simulation_output):
     formatted_bracket = {"rounds": []}
     num_rounds = len(simulation_output)
-
     for round_index, matchups in enumerate(simulation_output):
         round_data = {"round": round_index + 1, "left": [], "right": []}
-
-        if round_index == 5 and len(matchups) == 1:  # handle final four
+        if round_index == 5 and len(matchups) == 1:
             team1, team2, p1, p2, winner_index, seed_1, seed_2, confidence = matchups[0]
             round_data["left"].append({"team1": team1, "team2": "", "p1": p1, "p2": p2, "winner": ""})
             round_data["right"].append({"team1": "", "team2": team2, "p1": p1, "p2": p2, "winner": ""})
@@ -311,9 +311,7 @@ def convert_bracket_format(simulation_output):
                     round_data["left"].append(const_obj)
                 else:
                     round_data["right"].append(const_obj)
-        
         formatted_bracket["rounds"].append(round_data)
-
     return formatted_bracket
 
 # function to get the correct suffix for a percentile
@@ -341,21 +339,26 @@ def get_teams(year):
     unique_teams = sorted(set(tournament_teams["team_1"].tolist() + tournament_teams["team_2"].tolist()))
     return jsonify(["None"] + unique_teams)
 
-# Route for simulation
+# Route for simulation with memory logging
 @app.route('/simulate', methods=['POST'])
 def simulate():
     try:
+        log_memory_usage("simulate start")
         input_data = request.json
+        log_memory_usage("After reading input_data")
         year = input_data.get('year', 2024)
         picked_winner = input_data.get('picked_winner')
         playstyle = input_data.get('playstyle', 'Balanced')
         boldness = input_data.get('boldness', 'Normal')
 
         data = get_matchup_data()
+        log_memory_usage("After loading matchup_data")
         simulator = BracketSimulator(data, year, picked_winner, playstyle, boldness)
         simulator.sim_bracket()
+        log_memory_usage("After sim_bracket")
         predictions = format_bracket(simulator.predicted_bracket)
         score = simulator.score_bracket()
+        log_memory_usage("After scoring bracket")
 
         try:
             score = simulator.score_bracket()
@@ -368,17 +371,19 @@ def simulate():
             filters=[("year", "==", year)]
         )['score']
         odds_sim_scores = pd.to_numeric(odds_sim_scores, downcast="integer")
+        log_memory_usage("After loading odds_sim_scores")
 
         percentile = None
         if score is not None:
             if len(odds_sim_scores) > 0:
                 percentile = ordinal(int(percentileofscore(odds_sim_scores, score, kind='rank')))
+        log_memory_usage("Before session assignment")
 
         session['selected_params'] = input_data
         session['simulation_results'] = predictions
         session['score'] = score
         session['percentile'] = percentile
-
+        log_memory_usage("Before returning response")
         return jsonify({'redirect_url': url_for('results')})
     
     except Exception as e:
@@ -400,9 +405,10 @@ def results():
                            results=raw_results, formatted_bracket=formatted_bracket,
                            score=score, percentile=percentile)
 
-# Route for analytics page
+# Route for analytics with memory logging
 @app.route('/analytics')
 def analytics():
+    log_memory_usage("analytics start")
     selected_params = session.get('selected_params', {})
     year = selected_params.get('year', 2024)
     user_score = session.get('score', None)
@@ -436,6 +442,7 @@ def analytics():
         confidence_color = "#ffffff"
     most_confident, least_confident, confident_upsets = get_confidence_stuff(bracket)
     confidence_bar_url = generate_confidence_bar_plot(bracket)
+    log_memory_usage("analytics end")
 
     return render_template('analytics.html', 
                             distribution=odds_sim_scores,
