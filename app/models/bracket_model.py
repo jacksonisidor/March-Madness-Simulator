@@ -5,8 +5,17 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from xgboost import XGBClassifier
 import warnings
+import gc
+import psutil, os, tracemalloc
+import sys
 warnings.filterwarnings("ignore")
 
+# Function to log current memory usage
+def log_memory_usage(tag):
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info().rss / (1024 * 1024)
+    print(f"[MEMORY] {tag}: {mem:.2f} MB")
+    sys.stdout.flush()  # Force immediate flushing
 
 ## SIMULATION
 class BracketSimulator: 
@@ -21,23 +30,21 @@ class BracketSimulator:
 
     
     def score_bracket(self):
-
-        predicted = self.predicted_bracket[['team_1', 'team_2', 'prediction', 'current_round']]
-        actual = self.data[(self.data["year"] == self.year) & (self.data["type"] == "T")][['team_1', 'team_2', 'winner', 'current_round']]
-
-        score = 0
-        for (pred_index, pred_matchup), (act_index, act_matchup) in zip(predicted.iterrows(), actual.iterrows()):
-            
-            if (pred_matchup["team_1"] == act_matchup["team_1"]) and (pred_matchup["prediction"] == act_matchup["winner"] == 1):
-                score += (64 / pred_matchup["current_round"]) * 10
-                
-            elif (pred_matchup["team_2"] == act_matchup["team_2"]) and (pred_matchup["prediction"] == act_matchup["winner"] == 0): 
-                score += (64 / pred_matchup["current_round"]) * 10
-                
+        predicted = self.predicted_bracket[['team_1', 'team_2', 'prediction', 'current_round']].reset_index(drop=True)
+        actual = self.data[(self.data["year"] == self.year) & (self.data["type"] == "T")][['team_1', 'team_2', 'winner', 'current_round']].reset_index(drop=True)
+        
+        mask1 = (predicted["team_1"] == actual["team_1"]) & (predicted["prediction"] == 1) & (actual["winner"] == 1)
+        mask2 = (predicted["team_2"] == actual["team_2"]) & (predicted["prediction"] == 0) & (actual["winner"] == 0)
+        
+        score = (((64 / predicted["current_round"]) * 10)[mask1].sum() + 
+                 ((64 / predicted["current_round"]) * 10)[mask2].sum())
+        
         return int(score)
 
         
     def sim_bracket(self, current_matchups=None, model=None, predictors=None):
+
+        log_memory_usage("sim_bracket start")
 
         # get round of 64 at the start
         if current_matchups is None:
@@ -49,6 +56,8 @@ class BracketSimulator:
                 (self.data["current_round"] == 64)
             ].copy()
 
+            log_memory_usage("After copying round 64 data")
+
 
         # Only train model if it hasn't been trained yet
         if model is None:
@@ -59,23 +68,40 @@ class BracketSimulator:
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
             model, predictors = self.train_model(training_data)
+            log_memory_usage("After training model")
 
         predictions = self.predict_games(model, current_matchups, predictors)
+        log_memory_usage("After predicting current round")
 
         # Base case: Reached championship, no more rounds
         if predictions["current_round"].iloc[0] == 2:
             self.predicted_bracket = predictions
+            log_memory_usage("Reached championship; ending recursion")
             return  
+
+        # Save a copy of current round predictions for later concatenation
+        temp_predictions = predictions.copy()
+        log_memory_usage("After copying predictions for later")
 
         next_round_teams = self.get_winner_info(predictions)
         next_round_matchups = self.next_sim_matchups(next_round_teams)
+        log_memory_usage("After preparing next round matchups")
+
+        # Free intermediate objects from current round
+        del predictions, next_round_teams
+        gc.collect()
+        log_memory_usage("After cleaning up current round objects")
 
         # Recursively simulate remaining rounds
         self.sim_bracket(next_round_matchups, model, predictors)
 
         # After recursion, assign full bracket
-        self.predicted_bracket = pd.concat([predictions, self.predicted_bracket], ignore_index=True)
-
+        self.predicted_bracket = pd.concat([temp_predictions, self.predicted_bracket], ignore_index=True)
+        
+        log_memory_usage("After concatenating predictions")
+        del temp_predictions
+        gc.collect()
+        log_memory_usage("End of sim_bracket")
     
     def train_model(self, training_data):
 
@@ -136,13 +162,18 @@ class BracketSimulator:
             subsample=0.9,
             colsample_bytree=1,
             gamma=5,
-            random_state=44
+            random_state=44,
+            tree_method='hist'
         )
 
         # fit the model
         model.fit(training_data[predictors], 
                 training_data["winner"], 
                 sample_weight=training_data["weight"])
+
+        
+        del training_data
+        gc.collect()
 
         return model, predictors
 
@@ -156,8 +187,8 @@ class BracketSimulator:
         matchups.loc[:, "win probability"] = probs[:, 1]
 
         # add a little normally distributed randomness for fun :)
-        randomness = np.random.normal(0, 0.025)
-        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
+        #randomness = np.random.normal(0, 0.025)
+        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
@@ -257,38 +288,8 @@ class BracketSimulator:
 
         return matchups
 
-
-
-'''def format_bracket(results):
-
-    num_rounds = 7  # rounds from 64 teams to a single champion
-
-    # Initialize a list of empty lists for each round
-    bracket_structure = [[] for _ in range(num_rounds)]
-
-    for _, row in results.iterrows():
-
-        round_index = int(np.log2(64 / row['current_round']))  # Convert to 0-5 index
-
-        # add the matchups to the appropriate round in order
-        matchup = [row['team_1'], row['team_2']]
-        bracket_structure[round_index].append(matchup)
-
-    # extract the final winner from the last matchup
-    final_game = results[results['current_round'] == 2].iloc[0]  
-    final_matchup = bracket_structure[-2][0]  # Get last game stored in bracket
-    final_winner = final_matchup[0] if final_game['prediction'] == 1 else final_matchup[1]
-
-    # Add the winner as the last round
-    bracket_structure[-1].append([final_winner])
-
-    return bracket_structure
-
-
-
-# FOR TESTING
-data = pd.read_parquet("data/all_matchup_stats.parquet")
-simulator = BracketSimulator(data, 2024)
-simulator.sim_bracket()
-print(simulator.score_bracket())
-print(format_bracket(simulator.predicted_bracket))'''
+# FOR TESTING (if needed)
+# data = pd.read_parquet("data/all_matchup_stats.parquet")
+# simulator = BracketSimulator(data, 2024)
+# simulator.sim_bracket()
+# print(simulator.score_bracket())
