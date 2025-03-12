@@ -17,8 +17,6 @@ app.secret_key = 'BBallSim'
 
 # Read in data
 data = pd.read_parquet("data/all_matchup_stats.parquet")
-odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet")
-upset_counts = pd.read_csv("data/upset_counts.csv")
 public_scores = pd.read_csv("data/public_bracket_scores.csv")
 
 # produce a bar chart of confidence per round
@@ -377,15 +375,20 @@ def simulate():
             score = simulator.score_bracket()  
         except Exception as e:
             score = None  # set score to None if scoring fails
+        
+        # load in simulation data efficiently
+        odds_sim_scores = pd.read_parquet(
+            "data/odds_sim_scores.parquet",
+            columns=["score"],
+            filters=[("year", "==", year)]
+        )['score']
+        odds_sim_scores = pd.to_numeric(odds_sim_scores, downcast="integer")
 
         # handle percentile calculation
         percentile = None
         if score is not None:
-            year_sim_scores = odds_sim_scores[odds_sim_scores["year"] == year]["score"]
-
-            # check if there are valid historical scores
-            if len(year_sim_scores) > 0:
-                percentile = ordinal(int(percentileofscore(year_sim_scores, score, kind='rank')))
+            if len(odds_sim_scores) > 0:
+                percentile = ordinal(int(percentileofscore(odds_sim_scores, score, kind='rank')))
 
 
         # store results in session
@@ -431,7 +434,12 @@ def analytics():
     
     # get score info
     if user_score:
-        sim_scores = odds_sim_scores[odds_sim_scores["year"] == year]["score"].tolist()
+        odds_sim_scores = pd.read_parquet(
+            "data/odds_sim_scores.parquet",
+            columns=["score"],
+            filters=[("year", "==", year)]
+        )['score']
+        odds_sim_scores = pd.to_numeric(odds_sim_scores, downcast="integer")
         public_user_avg = public_scores.loc[public_scores.year == year, "avg_user_score"].iloc[0]
         if np.isnan(public_user_avg):
             public_user_avg = None
@@ -440,7 +448,7 @@ def analytics():
 
         seed_based_score = round((public_scores.loc[public_scores.year == year, "seed_based_score"].iloc[0])*10)
         points_possible = 1920
-        score_hist_url = generate_score_distribution(user_score, sim_scores, public_user_avg)
+        score_hist_url = generate_score_distribution(user_score, odds_sim_scores, public_user_avg)
     else:
         score_hist_url = None
 
@@ -456,7 +464,7 @@ def analytics():
     confidence_bar_url = generate_confidence_bar_plot(bracket)
 
     return render_template('analytics.html', 
-                            distribution=sim_scores,
+                            distribution=odds_sim_scores,
                             user_score=user_score,
                             bracket=bracket,
                             public_user_avg=public_user_avg,
