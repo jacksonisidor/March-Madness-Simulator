@@ -9,7 +9,7 @@ import seaborn as sns
 matplotlib.use('Agg')
 from io import BytesIO
 import base64
-from models.bracket_model import BracketSimulator
+from app.models.bracket_model import BracketSimulator
 
 # Initialize the Flask app
 app = Flask(__name__)
