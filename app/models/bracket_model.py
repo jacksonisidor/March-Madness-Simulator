@@ -156,7 +156,7 @@ class BracketSimulator:
 
         # train the model
         model = XGBClassifier(
-            n_estimators=100,
+            n_estimators=130,
             max_depth=5,
             learning_rate=0.2,
             subsample=0.9,
@@ -220,7 +220,7 @@ class BracketSimulator:
         matchups.loc[matchups["close_call_2"] & ~matchups["close_call_1"], "prediction"] = 1 
 
         # note close calls for the next round
-        close_thresh = 0
+        close_thresh = 0.02
         matchups.loc[:, "close_call_1"] = (matchups["win probability"] >= 0.5 - close_thresh) & (matchups["win probability"] <= 0.5 + close_thresh)  
         matchups.loc[:, "close_call_2"] = (1 - matchups["win probability"] >= 0.5 - close_thresh) & (1 - matchups["win probability"] <= 0.5 + close_thresh)
 
