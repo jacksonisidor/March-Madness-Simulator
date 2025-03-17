@@ -1,21 +1,19 @@
 # IMPORTS
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
 from xgboost import XGBClassifier
 import warnings
 import gc
-import psutil, os, tracemalloc
+import psutil, os
 import sys
 warnings.filterwarnings("ignore")
 
-# Function to log current memory usage
+# function to log current memory usage
 def log_memory_usage(tag):
     process = psutil.Process(os.getpid())
     mem = process.memory_info().rss / (1024 * 1024)
     print(f"[MEMORY] {tag}: {mem:.2f} MB")
-    sys.stdout.flush()  # Force immediate flushing
+    sys.stdout.flush()  # force immediate flushing
 
 ## SIMULATION
 class BracketSimulator: 
@@ -59,12 +57,13 @@ class BracketSimulator:
             log_memory_usage("After copying round 64 data")
 
 
-        # Only train model if it hasn't been trained yet
+        # only train model if it hasn't been trained yet
         if model is None:
 
             # get all data that was not in this years tournament
+            ## ignore 2025 for now bc its only regular season games rn and i dont want to mess with tuned model
             training_data = self.data[
-                (self.data["year"] != self.year) | 
+                ((self.data["year"] != self.year) & (self.data["year"] != 2025)) | 
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
             model, predictors = self.train_model(training_data)
@@ -73,13 +72,13 @@ class BracketSimulator:
         predictions = self.predict_games(model, current_matchups, predictors)
         log_memory_usage("After predicting current round")
 
-        # Base case: Reached championship, no more rounds
+        # base case: reached championship, no more rounds
         if predictions["current_round"].iloc[0] == 2:
             self.predicted_bracket = predictions
             log_memory_usage("Reached championship; ending recursion")
             return  
 
-        # Save a copy of current round predictions for later concatenation
+        # save a copy of current round predictions for later concatenation
         temp_predictions = predictions.copy()
         log_memory_usage("After copying predictions for later")
 
@@ -87,15 +86,15 @@ class BracketSimulator:
         next_round_matchups = self.next_sim_matchups(next_round_teams)
         log_memory_usage("After preparing next round matchups")
 
-        # Free intermediate objects from current round
+        # free intermediate objects from current round
         del predictions, next_round_teams
         gc.collect()
         log_memory_usage("After cleaning up current round objects")
 
-        # Recursively simulate remaining rounds
+        # recursively simulate remaining rounds
         self.sim_bracket(next_round_matchups, model, predictors)
 
-        # After recursion, assign full bracket
+        # after recursion, assign full bracket
         self.predicted_bracket = pd.concat([temp_predictions, self.predicted_bracket], ignore_index=True)
         
         log_memory_usage("After concatenating predictions")
@@ -116,7 +115,7 @@ class BracketSimulator:
                 'badj_d_diff': weight_multiplier, 'efg_d_diff': weight_multiplier, 'ft_rate_d_diff': weight_multiplier, 
                 'tov_percent_d_diff': weight_multiplier, '3p_percent_d_diff': weight_multiplier, '2p_percent_d_diff': weight_multiplier
             },
-            "Balanced": {'2p_percent_d_diff': 0, '3p_percent_d_diff': 0}  # No extra weighting
+            "Balanced": {'2p_percent_d_diff': 0, '3p_percent_d_diff': 0}  
         }
 
         # define all predictors
@@ -187,8 +186,9 @@ class BracketSimulator:
         matchups.loc[:, "win probability"] = probs[:, 1]
 
         # add a little normally distributed randomness for fun :)
-        #randomness = np.random.normal(0, 0.025)
-        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
+        randomness = np.random.normal(0, 0.025)
+        randomness = np.clip(randomness, -0.05, 0.05) # so it doesn't get too out of hand
+        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
@@ -207,13 +207,14 @@ class BracketSimulator:
         elif self.boldness == "So Safe":
             threshold_higher_seed = 0.37
             threshold_lower_seed = 0.63
-
-        # if seed 1 is the higher seed (underdog)
-        matchups.loc[matchups["seed_1"] > matchups["seed_2"], "prediction"] = (matchups["win probability"] > threshold_lower_seed)*1
-        # if seed 1 is the lower seed (favorite)
-        matchups.loc[matchups["seed_1"] < matchups["seed_2"], "prediction"] = (matchups["win probability"] > threshold_higher_seed)*1
-        # if seed 1 and seed 2 are the same seed
-        matchups.loc[matchups["seed_1"] == matchups["seed_2"], "prediction"] = (matchups["win probability"] > 0.5)*1
+        
+        # apply boldness. upset only applies to differences of >= 2 seeds
+        mask_upset_underdog = (matchups["seed_1"] > matchups["seed_2"]) & ((matchups["seed_1"] - matchups["seed_2"]) >= 2)
+        mask_upset_favorite = (matchups["seed_1"] < matchups["seed_2"]) & ((matchups["seed_2"] - matchups["seed_1"]) >= 2)
+        mask_similar = ~(mask_upset_underdog | mask_upset_favorite)
+        matchups.loc[mask_upset_underdog, "prediction"] = (matchups.loc[mask_upset_underdog, "win probability"] > threshold_lower_seed).astype(int)
+        matchups.loc[mask_upset_favorite, "prediction"] = (matchups.loc[mask_upset_favorite, "win probability"] > threshold_higher_seed).astype(int)
+        matchups.loc[mask_similar, "prediction"] = (matchups.loc[mask_similar, "win probability"] > 0.5).astype(int)
 
         # apply close call strategy
         matchups.loc[matchups["close_call_1"] & ~matchups["close_call_2"], "prediction"] = 0  
@@ -288,8 +289,8 @@ class BracketSimulator:
 
         return matchups
 
-# FOR TESTING (if needed)
-# data = pd.read_parquet("data/all_matchup_stats.parquet")
-# simulator = BracketSimulator(data, 2024)
-# simulator.sim_bracket()
-# print(simulator.score_bracket())
+#FOR TESTING
+#data = pd.read_parquet("data/all_matchup_stats.parquet")
+#simulator = BracketSimulator(data, 2025)
+#simulator.sim_bracket()
+#print(simulator.predicted_bracket.tail(10))
