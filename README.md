@@ -54,7 +54,7 @@ A Flask-based web application that allows users to generate an optimized March M
         - 0.7 * weighted_accuracy + 0.3 * bracket_score
         - Bracket score is too volatile to be the lone metric with points doubling each round. The championship game is worth 32 first round games.
         - The *weighted* part of accuracy puts more emphasis on getting close games right
-    - Normally distributed randomness (std = 0.025, hard capped at 0.1) added to win probabilities to simulate real-world uncertainty (madness, if you will)... plus it's no fun if everyone gets the same bracket
+    - Normally distributed randomness (std = 0.05, hard capped at 0.1) added to win probabilities to simulate real-world uncertainty (madness, if you will)... plus it's no fun if everyone gets the same bracket
 
 3. Frontend (HTML, CSS, JavaScript)
     - `app/templates/home.html` holds the home page and offers/collects user preferences
