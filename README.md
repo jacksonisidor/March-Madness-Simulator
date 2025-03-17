@@ -111,7 +111,7 @@ $ python3 app/app.py
 # Contributors
 
 - **Jackson Isidor** - Data Scientist and Developer
-- **Alex Dekhtyar:** - Advisor
+- **Alex Dekhtyar** - Advisor
 
 # License 
 
