@@ -61,7 +61,7 @@ class BracketSimulator:
         if model is None:
 
             # get all data that was not in this years tournament
-            ## ignore 2025 for now bc its only regular season games rn and i dont want to mess with tuned model
+            ## ignore 2025 for now because its not complete
             training_data = self.data[
                 ((self.data["year"] != self.year) & (self.data["year"] != 2025)) | 
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
@@ -187,7 +187,7 @@ class BracketSimulator:
 
         # add a little normally distributed randomness for fun :)
         randomness = np.random.normal(0, 0.025)
-        randomness = np.clip(randomness, -0.05, 0.05) # so it doesn't get too out of hand
+        randomness = np.clip(randomness, -0.1, 0.1) # so it doesn't get too out of hand
         matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0, 1)
 
 
