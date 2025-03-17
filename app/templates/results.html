@@ -38,6 +38,7 @@
       font-weight: bold;
       margin-bottom: 20px;
       margin-top: 50px;
+      margin-left: 25px;
     }
     
     .percentile-container {
@@ -189,6 +190,7 @@
         justify-content: center;
         margin: 100px 0;
         margin-bottom: -130px;
+        margin-left: 25px;
     }
     .legend-label {
         font-size: 14px;
@@ -202,11 +204,13 @@
         border-radius: 4px;
     }
     .fixed-width-container {
-        width: 95vw;
-        max-width: 1400px;
-        min-width: 1400px; /* ensures no resizing */
-        margin: 0 auto; /* center it */
+      width: 1400px;
+      min-width: 1400px;
+      max-width: 1400px;
+      margin: 0;            /* Remove auto margins */
+      align-self: flex-start; /* Override body centering */
     }
+
 
     .bracket-team:hover::after {
       content: attr(data-confidence);

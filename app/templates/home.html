@@ -33,6 +33,15 @@
             margin: 20px 0;
         }
 
+        /* For smaller screens, stack the dropdowns vertically */
+        @media (max-width: 800px) {
+        .input-container {
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+        }
+
         .input-group label {
             font-weight: bold;
             font-size: 18px;
