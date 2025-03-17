@@ -22,7 +22,7 @@ headers = ['', 'TEAM', 'ADJ OE', 'ADJ DE', 'BARTHAG', 'RECORD', 'WINS', 'GAMES',
 # loop through all the years, pull the data, and add them together
 dfs = []
 wabs = []
-years = range(2008, 2025)
+years = range(2008, 2026)
 years = [year for year in years if year != 2020]
 for year in years:
 
@@ -117,7 +117,7 @@ headers = ["DATE", "TYPE", "TEAM", "CONF.", "OPP.", "VENUE", "RESULT", "ADJ. O",
            "DREB%", "DFTR"]
 
 dfs = []
-years = range(2008, 2025)
+years = range(2008, 2026)
 years = [year for year in years if year != 2020]
 
 for year in years:
@@ -149,10 +149,10 @@ rs_matchups = rs_matchups.rename(columns={
 print("Pulled in RS matchups")
 
 # READ IN TOURNAMENT MATCHUP DATA
-raw_matchups = pd.read_csv("data/raw_matchups.csv")
+tournament_matchups = pd.read_csv("data/tournament_matchups.csv")
 
 # MERGE TOURNAMENT MATCHUPS WITH STATS
-tourney_team_stats = pd.merge(raw_matchups, team_stats, on=["TEAM", "YEAR"], how='left')
+tourney_team_stats = pd.merge(tournament_matchups, team_stats, on=["TEAM", "YEAR"], how='left')
 
 # use the same processing steps as before (combine rows, rename + drop columns)
 tourney_matchup_stats = pd.DataFrame(columns=['year', 'team_1', 'seed_1', 'round_1', 'current_round', 'score_1',

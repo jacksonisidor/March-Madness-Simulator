@@ -83,7 +83,7 @@
   <div class="box-container">
     <!-- First content box titled Against the Rest -->
     <div class="content">
-      <h2>Against the Rest</h2>
+      <h2>Score Insights</h2>
       {% if user_score %}
         <ul>
           <li>{{ user_score }} out of {{ points_possible }} possible points</li>
@@ -114,7 +114,23 @@
           <p>No data available.</p>
         {% endif %}
       {% else %}
-        <p>Come back when the tournament ends for score-related stats!</p>
+      <p style="margin-bottom: 0px;">The tournament is still in progress, so scores aren’t available yet.</p>
+      <p>In the meantime, here are some insights from previous tournaments:</p>
+      <ul style="text-align: left; display: inline-block;">
+        <li style="margin-bottom: 10px; margin-top: 15px">
+          The default simulator scores <strong>981 points</strong> on average
+        </li>
+          <ul>
+            <li style="margin-bottom: 10px; margin-top: 10px;"><strong>394 points</strong> better than the average user*</li>
+            <li><strong>190 points</strong> better than just picking the best seed</li>
+          </ul>
+      </ul>
+      <p style="font-size: 0.9em; margin-top: -3px; margin-bottom: 20px">
+        *for 9 years of data from marchmadness.com
+      </p>
+      <p>
+        Come back when the tournament ends for your personalized score-related stats, or check out previous years!
+      </p>
       {% endif %}
     </div>
     <!-- Second content box titled Confidence -->

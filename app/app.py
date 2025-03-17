@@ -13,29 +13,29 @@ import psutil, os, tracemalloc
 import sys
 import gc
 
-# Start tracemalloc for detailed memory snapshots
+# start memory tracer for detailed memory snapshots
 tracemalloc.start()
 
-# Function to log current memory usage
+# function to log current memory usage
 def log_memory_usage(tag):
     process = psutil.Process(os.getpid())
     mem = process.memory_info().rss / (1024 * 1024)
     print(f"[MEMORY] {tag}: {mem:.2f} MB")
-    sys.stdout.flush()  # Force immediate flushing
+    sys.stdout.flush()  # force immediate flushing
 
-# Use conditional import for BracketSimulator:
+# use conditional import for BracketSimulator 
 try:
-    # For deployment on Render
+    # for deployment on Render
     from app.models.bracket_model import BracketSimulator
 except ModuleNotFoundError:
-    # For local testing
+    # for local testing
     from models.bracket_model import BracketSimulator
 
-# Initialize the Flask app
+# initialize the Flask app
 app = Flask(__name__)
 app.secret_key = 'BBallSim'
 
-# Helper function to load data on demand (lazy loading)
+# helper functions to load data on demand (lazy loading)
 def get_matchup_data():
     if 'matchup_data' not in g:
         g.matchup_data = pd.read_parquet("data/all_matchup_stats.parquet")
@@ -46,20 +46,20 @@ def get_public_scores():
         g.public_scores = pd.read_csv("data/public_bracket_scores.csv", low_memory=True)
     return g.public_scores
 
-# Ensure that the data loaded in g is cleared after each request.
+# ensure that the data loaded in g is cleared after each request.
 @app.teardown_request
 def teardown_request(exception):
     g.pop('matchup_data', None)
     g.pop('public_scores', None)
     gc.collect()
 
-# Produce a bar chart of confidence per round
+# produce a bar chart of confidence per round
 def generate_confidence_bar_plot(bracket):
     rounds = []
     avg_confidences = []
     for i, round_matchups in enumerate(bracket, start=1):
         if i == 7:
-            continue  # Skip round 7 (championship round)
+            continue  # skip round 7 (championship round)
         total_conf = 0.0
         count = 0
         for matchup in round_matchups:
@@ -99,7 +99,7 @@ def generate_confidence_bar_plot(bracket):
     plot_url = base64.b64encode(img.getvalue()).decode("utf8")
     return plot_url
 
-# Retrieve most and least confident predictions
+# retrieve most and least confident predictions
 def get_confidence_stuff(bracket):
     games = []
     upsets = []
@@ -145,7 +145,7 @@ def get_confidence_stuff(bracket):
     most_confident_upsets = [upset[1] for upset in upsets[:3]]
     return most_confident_games, least_confident_games, most_confident_upsets
 
-# Generate a color based on confidence level
+# generate a color based on confidence level
 def get_confidence_color(confidence_str):
     try:
         conf_float = float(confidence_str.strip('%')) / 100.0
@@ -155,7 +155,7 @@ def get_confidence_color(confidence_str):
     lightness = 50 + (1 - abs(conf_float - 0.5)*2) * 30
     return f"hsla({hue}, 100%, {lightness}%, 0.5)"
 
-# Calculate the confidence level of a bracket
+# calculate the confidence level of a bracket
 def calculate_average_confidence(bracket):
     total_conf = 0.0
     count = 0
@@ -173,7 +173,7 @@ def calculate_average_confidence(bracket):
         return total_conf / count
     return None
 
-# Plot simulated scores and return a base64 image URL
+# plot simulated scores and return a base64 image URL
 def generate_score_distribution(user_score, sim_scores, public_user_avg=None):
     bg_color = "#f0f0f0"
     fig = plt.figure(figsize=(7, 4), facecolor=bg_color)
@@ -211,7 +211,7 @@ def generate_score_distribution(user_score, sim_scores, public_user_avg=None):
     plot_url = base64.b64encode(img.getvalue()).decode("utf8")
     return plot_url
 
-# Format the bracket for analysis; free memory afterward.
+# format the bracket for analysis and free memory afterward
 def format_bracket(results):
     num_rounds = 7
     bracket_structure = [[] for _ in range(num_rounds)]
@@ -233,7 +233,7 @@ def format_bracket(results):
     gc.collect()
     return bracket_structure
 
-# Convert the bracket to a dictionary for rendering the template
+# convert the bracket to a dictionary for rendering the template
 def convert_bracket_format(simulation_output):
     formatted_bracket = {"rounds": []}
     num_rounds = len(simulation_output)
@@ -256,7 +256,7 @@ def convert_bracket_format(simulation_output):
         formatted_bracket["rounds"].append(round_data)
     return formatted_bracket
 
-# Get the correct ordinal suffix for a percentile
+# get the correct ordinal suffix for a percentile
 def ordinal(n):
     if 10 <= n % 100 <= 20:
         suffix = "th"
@@ -264,7 +264,8 @@ def ordinal(n):
         suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"
 
-# Routes
+# ROUTES
+
 @app.route('/')
 def home():
     data = get_matchup_data()
@@ -296,21 +297,18 @@ def simulate():
         simulator.sim_bracket()
         log_memory_usage("After sim_bracket")
         predictions = format_bracket(simulator.predicted_bracket)
-        score = simulator.score_bracket()
-        log_memory_usage("After scoring bracket")
         try:
-            score = simulator.score_bracket()
-        except Exception as e:
-            score = None
-        odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet",
+            odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet",
                                           columns=["score"],
                                           filters=[("year", "==", year)])['score']
-        odds_sim_scores = pd.to_numeric(odds_sim_scores, downcast="integer")
-        log_memory_usage("After loading odds_sim_scores")
-        percentile = None
-        if score is not None and len(odds_sim_scores) > 0:
+            odds_sim_scores = pd.to_numeric(odds_sim_scores, downcast="integer")
+            log_memory_usage("After loading odds_sim_scores")
+            score = simulator.score_bracket()
             percentile = ordinal(int(percentileofscore(odds_sim_scores, score, kind='rank')))
-        log_memory_usage("Before session assignment")
+            log_memory_usage("After scoring bracket")
+        except Exception as e:
+            score = None
+            percentile = None
         session['selected_params'] = input_data
         session['simulation_results'] = predictions
         session['score'] = score
@@ -353,6 +351,10 @@ def analytics():
         points_possible = 1920
         score_hist_url = generate_score_distribution(user_score, odds_sim_scores, public_user_avg)
     else:
+        odds_sim_scores = None
+        public_user_avg = None
+        seed_based_score = None
+        points_possible = None
         score_hist_url = None
     confidence_level = calculate_average_confidence(bracket)
     if confidence_level is not None:
