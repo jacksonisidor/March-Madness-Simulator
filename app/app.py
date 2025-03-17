@@ -115,14 +115,14 @@ def get_confidence_stuff(bracket):
                     continue
                 if matchup[4] == 0:
                     winner_team = matchup[0]
-                    winner_seed = round(matchup[5])
+                    winner_seed = round(matchup[5], 1)
                     loser_team = matchup[1]
-                    loser_seed = round(matchup[6])
+                    loser_seed = round(matchup[6], 1)
                 else:
                     winner_team = matchup[1]
-                    winner_seed = round(matchup[6])
+                    winner_seed = round(matchup[6], 1)
                     loser_team = matchup[0]
-                    loser_seed = round(matchup[5])
+                    loser_seed = round(matchup[5], 1)
                 game_text = f"{winner_seed}. {winner_team} beats {loser_seed}. {loser_team} (round: {round_no}): {conf_val:.1f}%"
                 games.append((conf_val, game_text))
                 if matchup[5] < matchup[6] and matchup[4] == 1:
@@ -220,7 +220,7 @@ def format_bracket(results):
         winner = 0 if row["prediction"] == 1 else 1
         p1 = row['win probability']
         p2 = 1 - p1  
-        confidence = f'{round(max(p1, p2), 2)*100}%'
+        confidence = f"{round(max(p1, p2) * 100, 1)}%"
         seed_1 = row['seed_1']
         seed_2 = row['seed_2']
         matchup = [row['team_1'], row['team_2'], p1, p2, winner, seed_1, seed_2, confidence]
