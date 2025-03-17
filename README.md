@@ -111,8 +111,8 @@ $ python3 app/app.py
 # Contributors
 
 - **Jackson Isidor** - Data Scientist and Developer
-- Alex Dekhtyar - Advisor
+- **Alex Dekhtyar:** - Advisor
 
 # License 
 
-Available under MIT License. Open-source and always available for suggestions!
+Available under MIT License. Open-source and always open to suggestions!
