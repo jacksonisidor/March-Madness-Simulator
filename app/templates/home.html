@@ -36,11 +36,22 @@
 
         /* For smaller screens, stack the dropdowns vertically */
         @media (max-width: 800px) {
-        .input-container {
-            flex-direction: column;
-            align-items: center;
-            gap: 40px;
-        }
+            .input-container {
+                flex-direction: column;
+                align-items: center;
+                gap: 40px;
+            }
+            .author {
+                display: none;
+            }
+            .navbar {
+                padding: 8px 10px;
+                right: 10px;
+                justify-content: flex-end;
+            }
+            .social-icons a {
+                font-size: 22px;
+            }
         }
 
         .input-group label {
@@ -182,38 +193,52 @@
 
         .navbar {
             position: fixed;
-            top: 20px;
-            left: 20px;
+            top: 40px;
+            right: 20px; /* Moved to the right */
             display: flex;
             align-items: center;
             gap: 15px;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9);
             padding: 10px 20px;
             border-radius: 8px;
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: all 0.3s ease-in-out;
         }
 
-        .navbar a {
-            text-decoration: none;
-            color: #1F4DA3;
+
+        .author {
             font-size: 16px;
             font-weight: bold;
+            color: #000000;
         }
 
-        .navbar a:hover {
-            color: #E74C3C;
-        }
-
-        /* Social Icons */
         .social-icons a {
             color: #1F4DA3;
             font-size: 18px;
             transition: color 0.3s ease-in-out;
+            
         }
 
         .social-icons a:hover {
             color: #E74C3C;
         }
+    
+
+        @media (max-height: 450px) {
+            .author {
+                display: none;
+            }
+            .navbar {
+                padding: 8px 10px;
+                right: 10px;
+                justify-content: flex-end;
+            }
+            .social-icons a {
+                font-size: 22px;
+            }
+        }
+
 
     </style>
 </head>
@@ -222,7 +247,7 @@
     <!-- Navigation Bar -->
     <nav class="navbar">
         <div class="nav-left">
-            <span>🏀 By Jackson Isidor </span>
+            <span class="author">🏀 By Jackson Isidor</span>
         </div>
         <div class="nav-right">
             <a href="https://www.linkedin.com/in/jackson-isidor/" target="_blank">
