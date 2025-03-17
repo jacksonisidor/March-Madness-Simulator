@@ -88,16 +88,6 @@
             background-color: #C0392B;
         }
 
-        /* COVID Note */
-        .covid-note {
-            position: absolute;
-            bottom: 10px;
-            left: 15px;
-            font-size: 14px;
-            color: #ff0000;
-            font-weight: bold;
-        }
-
         /* Loading Message */
         #loadingMessage {
             font-size: 16px;
@@ -195,11 +185,6 @@
 </head>
 <body>
 
-    <!-- COVID Note -->
-    <div class="covid-note">
-        <p>Note: The 2020 tournament was canceled, and 2021 has missing data due to COVID.</p>
-    </div>
-
     <!-- Title -->
     <h1>March Madness Simulator</h1>
 
@@ -219,22 +204,11 @@
             </select>
         </div>
 
-        <!-- Picked Winner Selection -->
-        <div class="input-group">
-            <div class="label-container">
-                <label for="picked_winner">Winning Team</label>
-                <span class="help-icon" data-tooltip="Pick a team to automatically win the tournament (optional)">?</span>
-            </div>
-            <select id="picked_winner" name="picked_winner">
-                <option value="None" selected>None</option> <!-- Default -->
-            </select>
-        </div>
-
         <!-- Playstyle Selection -->
         <div class="input-group">
             <div class="label-container">
                 <label for="playstyle">Playstyle</label>
-                <span class="help-icon" data-tooltip="Pick what type of stats are used most when predicting (optional)">?</span>
+                <span class="help-icon" data-tooltip="Pick what type of stats are used most when predicting">?</span>
             </div>
             <select id="playstyle" name="playstyle">
                 <option value="Balanced" selected>Balanced</option>
@@ -247,7 +221,7 @@
         <div class="input-group">
             <div class="label-container">
                 <label for="boldness">Boldness</label>
-                <span class="help-icon" data-tooltip="Pick how risky you want to be in picking upsets (optional)">?</span>
+                <span class="help-icon" data-tooltip="Pick how risky you want to be in picking upsets">?</span>
             </div>
             <select id="boldness" name="boldness">
                 <option value="Go Big or Go Home">Go Big or Go Home</option>
@@ -255,6 +229,17 @@
                 <option value="Normal" selected>Normal</option>
                 <option value="Safe">Safe</option>
                 <option value="So Safe">So Safe</option>
+            </select>
+        </div>
+
+        <!-- Picked Winner Selection -->
+        <div class="input-group">
+            <div class="label-container">
+                <label for="picked_winner">Winning Team</label>
+                <span class="help-icon" data-tooltip="Pick a team to automatically win the tournament (optional)">?</span>
+            </div>
+            <select id="picked_winner" name="picked_winner">
+                <option value="None" selected>None</option> <!-- Default -->
             </select>
         </div>
     </div>
