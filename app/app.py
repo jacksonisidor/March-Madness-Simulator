@@ -221,8 +221,8 @@ def format_bracket(results):
         p1 = row['win probability']
         p2 = 1 - p1  
         confidence = f"{round(max(p1, p2) * 100, 1)}%"
-        seed_1 = row['seed_1']
-        seed_2 = row['seed_2']
+        seed_1 = round(row['seed_1'])
+        seed_2 = round(row['seed_2'])
         matchup = [row['team_1'], row['team_2'], p1, p2, winner, seed_1, seed_2, confidence]
         bracket_structure[round_index].append(matchup)
     final_game = results[results['current_round'] == 2].iloc[0]
