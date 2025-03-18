@@ -325,6 +325,10 @@ def results():
     raw_results = session.get('simulation_results')
     score = session.get('score')
     percentile = session.get('percentile')
+
+    if raw_results is None:  # If results are missing, redirect home
+        return redirect(url_for('home'))
+
     formatted_bracket = convert_bracket_format(raw_results)
     return render_template('results.html', selected_params=selected_params, results=raw_results,
                            formatted_bracket=formatted_bracket, score=score, percentile=percentile)
@@ -336,6 +340,10 @@ def analytics():
     year = selected_params.get('year', 2024)
     user_score = session.get('score', None)
     bracket = session.get('simulation_results', [])
+
+    if not bracket: # redirect to home bracket isnt found (i.e. someone leaves analytics page open for a while)
+        return redirect(url_for('home'))
+
     if user_score:
         odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet",
                                           columns=["score"],
