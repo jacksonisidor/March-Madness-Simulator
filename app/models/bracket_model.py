@@ -186,8 +186,8 @@ class BracketSimulator:
         matchups.loc[:, "win probability"] = probs[:, 1]
 
         # add a little normally distributed randomness for fun :)
-        randomness = np.random.normal(0, 0.05)
-        randomness = np.clip(randomness, -0.1, 0.1) # so it doesn't get too out of hand
+        randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
+        randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
         matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0.001, 0.999)
 
 
