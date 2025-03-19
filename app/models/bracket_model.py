@@ -186,9 +186,9 @@ class BracketSimulator:
         matchups.loc[:, "win probability"] = probs[:, 1]
 
         # add a little normally distributed randomness for fun :)
-        randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
-        randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
-        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0.001, 0.999)
+        #randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
+        #randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
+        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0.001, 0.999)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
@@ -208,9 +208,9 @@ class BracketSimulator:
             threshold_higher_seed = 0.37
             threshold_lower_seed = 0.63
         
-        # apply boldness. upset only applies to differences of >= 2 seeds
-        mask_upset_underdog = (matchups["seed_1"] > matchups["seed_2"]) & ((matchups["seed_1"] - matchups["seed_2"]) >= 2)
-        mask_upset_favorite = (matchups["seed_1"] < matchups["seed_2"]) & ((matchups["seed_2"] - matchups["seed_1"]) >= 2)
+        # apply boldness. upset only applies to differences of >= 1 seeds (maybe 2 is better?)
+        mask_upset_underdog = (matchups["seed_1"] > matchups["seed_2"]) & ((matchups["seed_1"] - matchups["seed_2"]) >= 1)
+        mask_upset_favorite = (matchups["seed_1"] < matchups["seed_2"]) & ((matchups["seed_2"] - matchups["seed_1"]) >= 1)
         mask_similar = ~(mask_upset_underdog | mask_upset_favorite)
         matchups.loc[mask_upset_underdog, "prediction"] = (matchups.loc[mask_upset_underdog, "win probability"] > threshold_lower_seed).astype(int)
         matchups.loc[mask_upset_favorite, "prediction"] = (matchups.loc[mask_upset_favorite, "win probability"] > threshold_higher_seed).astype(int)
