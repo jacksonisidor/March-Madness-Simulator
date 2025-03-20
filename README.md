@@ -16,7 +16,7 @@ A Flask-based web application that allows users to generate an optimized March M
     - Displays the full 64-team bracket
     - Teams are colored on a red-to-green scale based on confidence of winning
 
-3. Scoring System and Analytics
+3. Scoring and Analytics
     - **User Score:** based on ESPN scoring system
         - Points double each round (10 for first round, 20 for second, etc.)
     - **Scoring and Analytics:**
