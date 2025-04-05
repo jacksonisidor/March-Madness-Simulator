@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from xgboost import XGBClassifier
+import math
 import warnings
 import gc
 import psutil, os
@@ -53,6 +54,8 @@ class BracketSimulator:
                 (self.data["type"] == "T") & 
                 (self.data["current_round"] == 64)
             ].copy()
+            current_matchups['team1_path_odds'] = 1
+            current_matchups['team2_path_odds'] = 1
 
             log_memory_usage("After copying round 64 data")
 
@@ -184,11 +187,23 @@ class BracketSimulator:
         # get win probabilities (value represents probability of team_1 winning)
         probs = model.predict_proba(matchups[predictors])
         matchups.loc[:, "win probability"] = probs[:, 1]
+        p = matchups["win probability"]
+
+        # factor in path likelihoods
+        alpha = 1 # weighting of path odds vs win prob
+        adjusted_p = (p * (matchups["team1_path_odds"] ** alpha)) / (
+            (p * (matchups["team1_path_odds"] ** alpha)) + ((1 - p) * (matchups["team2_path_odds"] ** alpha))
+        )
+        matchups["adj win probability"] = adjusted_p
+
+        # update path likelihoods for next round
+        matchups["team1_path_odds"] *= matchups["win probability"]
+        matchups["team2_path_odds"] *= (1 - matchups["win probability"])
 
         # add a little normally distributed randomness for fun :)
-        randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
-        randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
-        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0.001, 0.999)
+        #randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
+        #randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
+        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0.001, 0.999)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
@@ -212,9 +227,9 @@ class BracketSimulator:
         mask_upset_underdog = (matchups["seed_1"] > matchups["seed_2"]) & ((matchups["seed_1"] - matchups["seed_2"]) >= 1)
         mask_upset_favorite = (matchups["seed_1"] < matchups["seed_2"]) & ((matchups["seed_2"] - matchups["seed_1"]) >= 1)
         mask_similar = ~(mask_upset_underdog | mask_upset_favorite)
-        matchups.loc[mask_upset_underdog, "prediction"] = (matchups.loc[mask_upset_underdog, "win probability"] > threshold_lower_seed).astype(int)
-        matchups.loc[mask_upset_favorite, "prediction"] = (matchups.loc[mask_upset_favorite, "win probability"] > threshold_higher_seed).astype(int)
-        matchups.loc[mask_similar, "prediction"] = (matchups.loc[mask_similar, "win probability"] > 0.5).astype(int)
+        matchups.loc[mask_upset_underdog, "prediction"] = (matchups.loc[mask_upset_underdog, "adj win probability"] > threshold_lower_seed).astype(int)
+        matchups.loc[mask_upset_favorite, "prediction"] = (matchups.loc[mask_upset_favorite, "adj win probability"] > threshold_higher_seed).astype(int)
+        matchups.loc[mask_similar, "prediction"] = (matchups.loc[mask_similar, "adj win probability"] > 0.5).astype(int)
 
         # apply close call strategy
         matchups.loc[matchups["close_call_1"] & ~matchups["close_call_2"], "prediction"] = 0  
@@ -222,8 +237,8 @@ class BracketSimulator:
 
         # note close calls for the next round
         close_thresh = 0.02
-        matchups.loc[:, "close_call_1"] = (matchups["win probability"] >= 0.5 - close_thresh) & (matchups["win probability"] <= 0.5 + close_thresh)  
-        matchups.loc[:, "close_call_2"] = (1 - matchups["win probability"] >= 0.5 - close_thresh) & (1 - matchups["win probability"] <= 0.5 + close_thresh)
+        matchups.loc[:, "close_call_1"] = (matchups["adj win probability"] >= 0.5 - close_thresh) & (matchups["adj win probability"] <= 0.5 + close_thresh)  
+        matchups.loc[:, "close_call_2"] = (1 - matchups["adj win probability"] >= 0.5 - close_thresh) & (1 - matchups["adj win probability"] <= 0.5 + close_thresh)
 
 
         # force the user-picked winner to advance (1 if they are team_1, 0 if they are team_2 to match input data)
@@ -244,6 +259,7 @@ class BracketSimulator:
 
         # get the winning data based on who won
         winning_data = np.where(winner_mask[:, None], winner_data_1.values, winner_data_2.values)
+        winning_path_odds = np.where(winner_mask, matchups["team1_path_odds"], matchups["team2_path_odds"])
 
         # create df
         next_round_teams = pd.DataFrame(winning_data, columns=[col[:-2] for col in winner_data_1.columns])
@@ -251,6 +267,7 @@ class BracketSimulator:
         # add year and current_round
         next_round_teams["year"] = matchups["year"].values
         next_round_teams["current_round"] = matchups["current_round"].values / 2
+        next_round_teams["path_odds"] = winning_path_odds
 
         return next_round_teams
 
@@ -274,6 +291,10 @@ class BracketSimulator:
             'close_call_1': team1['close_call'],
             'close_call_2': team2['close_call']
         })
+        
+        # separate path odds
+        matchups["team1_path_odds"] = team1["path_odds"]
+        matchups["team2_path_odds"] = team2["path_odds"]
 
         # add stat columns (team 1, team 2, and difference)
         stat_variables = [
@@ -293,4 +314,4 @@ class BracketSimulator:
 #data = pd.read_parquet("data/all_matchup_stats.parquet")
 #simulator = BracketSimulator(data, 2025)
 #simulator.sim_bracket()
-#print(simulator.predicted_bracket.tail(10))
+#print(simulator.predicted_bracket[['team_1', 'team_2', 'current_round', 'win probability', 'adj win probability', 'prediction']]) 

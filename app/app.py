@@ -218,7 +218,7 @@ def format_bracket(results):
     for _, row in results.iterrows():
         round_index = int(round(np.log2(64 / row['current_round'])))
         winner = 0 if row["prediction"] == 1 else 1
-        p1 = row['win probability']
+        p1 = row['adj win probability']
         p2 = 1 - p1  
         confidence = f"{round(max(p1, p2) * 100, 1)}%"
         seed_1 = round(row['seed_1'])
