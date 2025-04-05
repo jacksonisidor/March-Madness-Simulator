@@ -190,7 +190,7 @@ class BracketSimulator:
         p = matchups["win probability"]
 
         # factor in path likelihoods
-        alpha = 1 # weighting of path odds vs win prob
+        alpha = 0 # weighting of path odds vs win prob
         adjusted_p = (p * (matchups["team1_path_odds"] ** alpha)) / (
             (p * (matchups["team1_path_odds"] ** alpha)) + ((1 - p) * (matchups["team2_path_odds"] ** alpha))
         )
