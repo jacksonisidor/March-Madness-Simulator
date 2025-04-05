@@ -52,7 +52,7 @@ headers = ["DATE", "TYPE", "TEAM", "CONF.", "OPP.", "VENUE", "RESULT", "ADJ. O",
            "DREB%", "DFTR"]
 
 matchup_dfs = []
-years = range(2008, 2009)
+years = range(2008, 2026)
 years = [year for year in years if year != 2020]
 
 for year in years:
@@ -90,7 +90,6 @@ rs_matchups = rs_matchups.rename(columns={
 
 # filter out any games before 2008 (weird stuff with the website for early season games in 08)
 rs_matchups = rs_matchups[rs_matchups['exact_date'] > pd.Timestamp('2008-01-01')]
-rs_matchups = rs_matchups[rs_matchups['exact_date'] < pd.Timestamp('2008-01-05')]
 
 log_checkpoint("Pulled in all RS matchups")
 
