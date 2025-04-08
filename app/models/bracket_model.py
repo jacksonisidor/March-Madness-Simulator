@@ -128,7 +128,7 @@ class BracketSimulator:
             'tov_percent_diff', 'tov_percent_d_diff', 'adj_tempo_diff', 
             '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 'exp_diff', 
             'eff_hgt_diff', 'talent_diff', 'elite_sos_diff', 'win_percent_diff',
-            '3p_percent_d_diff', '2p_percent_d_diff'
+            '3p_percent_d_diff', '2p_percent_d_diff', 'recent_wab_diff'
         ]
 
         # apply feature weights
@@ -231,16 +231,6 @@ class BracketSimulator:
         matchups.loc[mask_upset_favorite, "prediction"] = (matchups.loc[mask_upset_favorite, "adj win probability"] > threshold_higher_seed).astype(int)
         matchups.loc[mask_similar, "prediction"] = (matchups.loc[mask_similar, "adj win probability"] > 0.5).astype(int)
 
-        # apply close call strategy
-        matchups.loc[matchups["close_call_1"] & ~matchups["close_call_2"], "prediction"] = 0  
-        matchups.loc[matchups["close_call_2"] & ~matchups["close_call_1"], "prediction"] = 1 
-
-        # note close calls for the next round
-        close_thresh = 0.02
-        matchups.loc[:, "close_call_1"] = (matchups["adj win probability"] >= 0.5 - close_thresh) & (matchups["adj win probability"] <= 0.5 + close_thresh)  
-        matchups.loc[:, "close_call_2"] = (1 - matchups["adj win probability"] >= 0.5 - close_thresh) & (1 - matchups["adj win probability"] <= 0.5 + close_thresh)
-
-
         # force the user-picked winner to advance (1 if they are team_1, 0 if they are team_2 to match input data)
         matchups.loc[matchups["team_1"] == self.picked_winner, "prediction"] = 1
         matchups.loc[matchups["team_2"] == self.picked_winner, "prediction"] = 0
@@ -287,9 +277,7 @@ class BracketSimulator:
             'current_round': team1['current_round'],
             'team_2': team2['team'],
             'seed_2': team2['seed'],
-            'round_2': team2['round'],
-            'close_call_1': team1['close_call'],
-            'close_call_2': team2['close_call']
+            'round_2': team2['round']
         })
         
         # separate path odds
@@ -298,7 +286,7 @@ class BracketSimulator:
 
         # add stat columns (team 1, team 2, and difference)
         stat_variables = [
-            'badj_em', 'badj_o', 'badj_d', 'wab', 'barthag', 'efg', 'efg_d',
+            'badj_em', 'badj_o', 'badj_d', 'wab', 'recent_wab', 'barthag', 'efg', 'efg_d',
             'ft_rate', 'ft_rate_d', 'tov_percent', 'tov_percent_d', 'adj_tempo',
             '3p_percent', '3p_rate', '2p_percent', '3p_percent_d', '2p_percent_d',
             'exp', 'eff_hgt', 'talent', 'elite_sos', 'win_percent'
