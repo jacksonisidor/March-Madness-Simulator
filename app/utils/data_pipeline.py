@@ -83,8 +83,6 @@ for year in years:
 
     print(f'Got all stats from {year}')
 
-print("Pulled in all stats")
-
 # concatenate the main stats DFs into a single DF
 combined_stats = pd.concat(dfs, ignore_index=True)
 combined_stats = combined_stats.T.drop_duplicates().T  # this should get rid of the second TEAM column
@@ -108,7 +106,7 @@ team_stats['win_percent'] = team_stats['WINS'] / team_stats['GAMES']
 # make new variable combining offensive and defensive efficiency
 team_stats['adjem'] = team_stats['ADJ OE'] - team_stats['ADJ DE']
 
-
+print("Pulled in all stats")
 
 ## PULL IN REGULAR SEASON MATCHUPS
 
