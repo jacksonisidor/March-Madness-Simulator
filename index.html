@@ -10,12 +10,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
+            justify-content: start;
+            min-height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
             background-color: #ced1d3;
-            padding-top: 70px;
+            padding-top: 120px;
         }
 
         .shutdown-banner {
@@ -32,17 +32,61 @@
             box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.15);
         }
 
-        .shutdown-banner a {
-            color: white;
+        .navbar {
+            position: fixed;
+            top: 40px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .author {
+            font-size: 16px;
             font-weight: bold;
-            text-decoration: underline;
-            margin-left: 10px;
+            color: #000000;
+        }
+
+        .social-icons a {
+            color: #1F4DA3;
+            font-size: 18px;
+            text-decoration: none;
+        }
+
+        .social-icons a:hover {
+            color: #E74C3C;
         }
 
         h1 {
             font-size: 4rem;
             color: #1F4DA3;
             text-align: center;
+            margin-top: 30px;
+        }
+
+        .info-box {
+            max-width: 800px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background-color: #f1f1f1;
+            border-left: 5px solid #1F4DA3;
+            font-size: 16px;
+            text-align: center;
+            color: #333;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .info-box a {
+            color: #1F4DA3;
+            font-weight: bold;
+            text-decoration: underline;
         }
 
         .input-container {
@@ -89,45 +133,6 @@
             opacity: 0.6;
         }
 
-        .param-note {
-            font-size: 16px;
-            font-style: italic;
-            color: #333;
-            text-align: center;
-            max-width: 800px;
-            margin-top: 10px;
-        }
-
-        .navbar {
-            position: fixed;
-            top: 40px;
-            right: 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 20px;
-            border-radius: 8px;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-        }
-
-        .author {
-            font-size: 16px;
-            font-weight: bold;
-            color: #000000;
-        }
-
-        .social-icons a {
-            color: #1F4DA3;
-            font-size: 18px;
-            text-decoration: none;
-        }
-
-        .social-icons a:hover {
-            color: #E74C3C;
-        }
-
         @media (max-width: 800px) {
             .input-container {
                 flex-direction: column;
@@ -144,8 +149,7 @@
 <body>
     <!-- Shutdown Banner -->
     <div class="shutdown-banner">
-        🔔 Simulator is paused for the off-season.
-        <a href="https://github.com/jacksonisidor/March-Madness-Simulator" target="_blank">Run it locally on GitHub</a>
+        🔔 The March Madness Simulator is paused for the off-season due to server costs.
     </div>
 
     <!-- Navigation Bar -->
@@ -160,6 +164,16 @@
 
     <!-- Title -->
     <h1>March Madness Simulator</h1>
+
+    <!-- Info Box -->
+    <div class="info-box">
+        <p>
+            Check back next March, or run <a href="https://github.com/jacksonisidor/March-Madness-Simulator" target="_blank">run it locally on GitHub</a> (see the README).
+            <br>
+            Contact me at <a href="mailto:jax.isidor@gmail.com">jax.isidor@gmail.com</a> or on
+            <a href="https://www.linkedin.com/in/jackson-isidor/" target="_blank">LinkedIn</a> with any questions.
+        </p>
+    </div>
 
     <!-- Static Inputs -->
     <div class="input-container">
@@ -182,15 +196,6 @@
     </div>
 
     <!-- Simulate Button (Disabled) -->
-    <button class="simulate-button" disabled>Simulate </button>
-
-    <p class="param-note">
-        The simulator is offline for now due to server costs — check back next March or try it locally from GitHub with the link at the top. Set up instructions are in the README.
-        <br><br>
-        Feel free to email me at
-        <a href="mailto:jax.isidor@gmail.com">jax.isidor@gmail.com</a>
-        or reach out on
-        <a href="https://www.linkedin.com/in/jackson-isidor/" target="_blank">LinkedIn</a> with questions.
-    </p>
+    <button class="simulate-button" disabled>Simulate</button>
 </body>
 </html>
