@@ -1,68 +1,130 @@
 ,YEAR,TEAM,SEED,ROUND,CURRENT ROUND,SCORE
-,2025,Auburn,1,,64,
-,2025,Alabama St.,16,,64,
-,2025,Louisville,8,,64,
-,2025,Creighton,9,,64,
-,2025,Michigan,5,,64,
-,2025,UC San Diego,12,,64,
-,2025,Texas A&M,4,,64,
-,2025,Yale,13,,64,
-,2025,Mississippi,6,,64,
-,2025,North Carolina,11,,64,
-,2025,Iowa St.,3,,64,
-,2025,Lipscomb,14,,64,
-,2025,Marquette,7,,64,
-,2025,New Mexico,10,,64,
-,2025,Michigan St.,2,,64,
-,2025,Bryant,15,,64,
-,2025,Florida,1,,64,
-,2025,Norfolk St.,16,,64,
-,2025,Connecticut,8,,64,
-,2025,Oklahoma,9,,64,
-,2025,Memphis,5,,64,
-,2025,Colorado St.,12,,64,
-,2025,Maryland,4,,64,
-,2025,Grand Canyon,13,,64,
-,2025,Missouri,6,,64,
-,2025,Drake,11,,64,
-,2025,Texas Tech,3,,64,
-,2025,UNC Wilmington,14,,64,
-,2025,Kansas,7,,64,
-,2025,Arkansas,10,,64,
-,2025,St. John's,2,,64,
-,2025,Nebraska Omaha,15,,64,
-,2025,Duke,1,,64,
-,2025,Mount St. Mary's,16,,64,
-,2025,Mississippi St.,8,,64,
-,2025,Baylor,9,,64,
-,2025,Oregon,5,,64,
-,2025,Liberty,12,,64,
-,2025,Arizona,4,,64,
-,2025,Akron,13,,64,
-,2025,BYU,6,,64,
-,2025,VCU,11,,64,
-,2025,Wisconsin,3,,64,
-,2025,Montana,14,,64,
-,2025,Saint Mary's,7,,64,
-,2025,Vanderbilt,10,,64,
-,2025,Alabama,2,,64,
-,2025,Robert Morris,15,,64,
-,2025,Houston,1,,64,
-,2025,SIU Edwardsville,16,,64,
-,2025,Gonzaga,8,,64,
-,2025,Georgia,9,,64,
-,2025,Clemson,5,,64,
-,2025,McNeese St.,12,,64,
-,2025,Purdue,4,,64,
-,2025,High Point,13,,64,
-,2025,Illinois,6,,64,
-,2025,Xavier,11,,64,
-,2025,Kentucky,3,,64,
-,2025,Troy,14,,64,
-,2025,UCLA,7,,64,
-,2025,Utah St.,10,,64,
-,2025,Tennessee,2,,64,
-,2025,Wofford,15,,64,
+,2025,Auburn,1,4,64,83
+,2025,Alabama St.,16,64,64,63
+,2025,Louisville,8,64,64,75
+,2025,Creighton,9,32,64,89
+,2025,Michigan,5,16,64,68
+,2025,UC San Diego,12,64,64,65
+,2025,Texas A&M,4,32,64,80
+,2025,Yale,13,64,64,71
+,2025,Mississippi,6,16,64,71
+,2025,North Carolina,11,64,64,64
+,2025,Iowa St.,3,32,64,82
+,2025,Lipscomb,14,64,64,55
+,2025,Marquette,7,64,64,66
+,2025,New Mexico,10,32,64,75
+,2025,Michigan St.,2,8,64,87
+,2025,Bryant,15,64,64,62
+,2025,Florida,1,2,64,95
+,2025,Norfolk St.,16,64,64,69
+,2025,Connecticut,8,32,64,67
+,2025,Oklahoma,9,64,64,59
+,2025,Memphis,5,64,64,70
+,2025,Colorado St.,12,32,64,78
+,2025,Maryland,4,16,64,81
+,2025,Grand Canyon,13,64,64,49
+,2025,Missouri,6,64,64,57
+,2025,Drake,11,32,64,67
+,2025,Texas Tech,3,8,64,82
+,2025,UNC Wilmington,14,64,64,72
+,2025,Kansas,7,64,64,72
+,2025,Arkansas,10,16,64,79
+,2025,St. John's,2,32,64,83
+,2025,Nebraska Omaha,15,64,64,53
+,2025,Duke,1,4,64,93
+,2025,Mount St. Mary's,16,64,64,49
+,2025,Mississippi St.,8,64,64,72
+,2025,Baylor,9,32,64,75
+,2025,Oregon,5,32,64,81
+,2025,Liberty,12,64,64,52
+,2025,Arizona,4,16,64,93
+,2025,Akron,13,64,64,65
+,2025,BYU,6,16,64,80
+,2025,VCU,11,64,64,71
+,2025,Wisconsin,3,32,64,85
+,2025,Montana,14,64,64,66
+,2025,Saint Mary's,7,32,64,59
+,2025,Vanderbilt,10,64,64,56
+,2025,Alabama,2,8,64,90
+,2025,Robert Morris,15,64,64,81
+,2025,Houston,1,2,64,78
+,2025,SIU Edwardsville,16,64,64,40
+,2025,Gonzaga,8,32,64,89
+,2025,Georgia,9,64,64,68
+,2025,Clemson,5,64,64,67
+,2025,McNeese St.,12,32,64,69
+,2025,Purdue,4,16,64,75
+,2025,High Point,13,64,64,63
+,2025,Illinois,6,32,64,86
+,2025,Xavier,11,64,64,73
+,2025,Kentucky,3,16,64,76
+,2025,Troy,14,64,64,57
+,2025,UCLA,7,32,64,72
+,2025,Utah St.,10,64,64,47
+,2025,Tennessee,2,8,64,77
+,2025,Wofford,15,64,64,62
+,2025,Auburn,1,4,32,82
+,2025,Creighton,9,32,32,70
+,2025,Michigan,5,16,32,91
+,2025,Texas A&M,4,32,32,79
+,2025,Mississippi,6,16,32,91
+,2025,Iowa St.,3,32,32,78
+,2025,New Mexico,10,32,32,63
+,2025,Michigan St.,2,8,32,71
+,2025,Florida,1,2,32,77
+,2025,Connecticut,8,32,32,75
+,2025,Colorado St.,12,32,32,71
+,2025,Maryland,4,16,32,72
+,2025,Drake,11,32,32,64
+,2025,Texas Tech,3,8,32,77
+,2025,Arkansas,10,16,32,75
+,2025,St. John's,2,32,32,66
+,2025,Duke,1,4,32,89
+,2025,Baylor,9,32,32,66
+,2025,Oregon,5,32,32,83
+,2025,Arizona,4,16,32,87
+,2025,BYU,6,16,32,91
+,2025,Wisconsin,3,32,32,89
+,2025,Saint Mary's,7,32,32,66
+,2025,Alabama,2,8,32,80
+,2025,Houston,1,2,32,81
+,2025,Gonzaga,8,32,32,76
+,2025,McNeese St.,12,32,32,62
+,2025,Purdue,4,16,32,76
+,2025,Illinois,6,32,32,75
+,2025,Kentucky,3,16,32,84
+,2025,UCLA,7,32,32,58
+,2025,Tennessee,2,8,32,67
+,2025,Auburn,1,4,16,78
+,2025,Michigan,5,16,16,65
+,2025,Mississippi,6,16,16,70
+,2025,Michigan St.,2,8,16,73
+,2025,Florida,1,2,16,87
+,2025,Maryland,4,16,16,71
+,2025,Texas Tech,3,8,16,85
+,2025,Arkansas,10,16,16,83
+,2025,Duke,1,4,16,100
+,2025,Arizona,4,16,16,93
+,2025,BYU,6,16,16,88
+,2025,Alabama,2,8,16,113
+,2025,Houston,1,2,16,62
+,2025,Purdue,4,16,16,60
+,2025,Kentucky,3,16,16,65
+,2025,Tennessee,2,8,16,78
+,2025,Auburn,1,4,8,70
+,2025,Michigan St.,2,8,8,64
+,2025,Florida,1,2,8,84
+,2025,Texas Tech,3,8,8,79
+,2025,Duke,1,4,8,85
+,2025,Alabama,2,8,8,65
+,2025,Houston,1,2,8,69
+,2025,Tennessee,2,8,8,50
+,2025,Auburn,1,4,4,73
+,2025,Florida,1,2,4,79
+,2025,Duke,1,4,4,67
+,2025,Houston,1,2,4,70
+,2025,Florida,1,2,2,65
+,2025,Houston,1,2,2,63
 0,2024,Connecticut,1,2,64,91
 1,2024,Stetson,16,64,64,52
 2,2024,Florida Atlantic,8,64,64,65
