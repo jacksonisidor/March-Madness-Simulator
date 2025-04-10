@@ -633,12 +633,12 @@ all_matchup_stats = pd.concat([all_matchup_stats, stat_diff_df], axis=1)
 del stat_diff_df
 gc.collect()
 
-# Add close call flags (only used for simulation strategy)
-new_flags = pd.DataFrame({
-    'close_call_1': False,
-    'close_call_2': False
-}, index=all_matchup_stats.index)
-all_matchup_stats = pd.concat([all_matchup_stats, new_flags], axis=1)
+# CLEAN UP
+allowed_missing_cols = ['seed_1', 'seed_2', 'round_1', 'round_2', 'current_round', 'exact_date', 'matchup_id']
+rows_with_allowed_nulls = all_matchup_stats.isnull() & all_matchup_stats.columns.to_series().apply(lambda col: col in allowed_missing_cols)
+rows_with_other_nulls = all_matchup_stats.isnull() & ~all_matchup_stats.columns.to_series().apply(lambda col: col in allowed_missing_cols)
+mask = ~rows_with_other_nulls.any(axis=1)
+all_matchup_stats = all_matchup_stats[mask]
 
 # EXPORT DF
 directory = "data"
