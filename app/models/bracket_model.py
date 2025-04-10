@@ -201,9 +201,9 @@ class BracketSimulator:
         matchups["team2_path_odds"] *= (1 - matchups["win probability"])
 
         # add a little normally distributed randomness for fun :)
-        #randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
-        #randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
-        #matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0.001, 0.999)
+        randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
+        randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
+        matchups["adj win probability"] = np.clip(matchups["adj win probability"] + randomness, 0.001, 0.999)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
