@@ -64,9 +64,8 @@ class BracketSimulator:
         if model is None:
 
             # get all data that was not in this years tournament
-            ## ignore 2025 for now because its not complete
             training_data = self.data[
-                ((self.data["year"] != self.year) & (self.data["year"] != 2025)) | 
+                ((self.data["year"] < self.year) & (self.year - self.data["year"]) > 5) | 
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
             model, predictors = self.train_model(training_data)
@@ -151,19 +150,20 @@ class BracketSimulator:
             training_data["weight"] *= (1 + (abs(training_data["badj_d_diff"]) - abs(training_data["badj_o_diff"])).clip(lower=0))
 
         # apply further weight to tournament games
-        training_data["weight"] *= training_data["type"].map({"T": 5, "RS": 1}).fillna(1)
+        tourney_weight = 10
+        training_data["weight"] *= training_data["type"].map({"T": tourney_weight, "RS": 1}).fillna(1)
 
         # ensure weights are always positive and non-zero
         training_data["weight"] = training_data["weight"].clip(lower=0.01).fillna(0.01)
 
         # train the model
         model = XGBClassifier(
-            n_estimators=130,
-            max_depth=5,
-            learning_rate=0.2,
+            n_estimators=50,
+            max_depth=9,
+            learning_rate=0.25,
             subsample=0.9,
-            colsample_bytree=1,
-            gamma=5,
+            colsample_bytree=0.8,
+            gamma=2,
             random_state=44,
             tree_method='hist'
         )
@@ -190,7 +190,7 @@ class BracketSimulator:
         p = matchups["win probability"]
 
         # factor in path likelihoods
-        alpha = 0 # weighting of path odds vs win prob
+        alpha = 1.5 # weighting of path odds vs win prob
         adjusted_p = (p * (matchups["team1_path_odds"] ** alpha)) / (
             (p * (matchups["team1_path_odds"] ** alpha)) + ((1 - p) * (matchups["team2_path_odds"] ** alpha))
         )
