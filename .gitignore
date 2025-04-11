@@ -7,4 +7,4 @@ node_modules/
 package.json
 package-lock.json
 myenv/
-test.ipynb
+data/test_stats.parquet

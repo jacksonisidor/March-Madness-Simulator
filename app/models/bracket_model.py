@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from xgboost import XGBClassifier
+import math
 import warnings
 import gc
 import psutil, os
@@ -53,6 +54,8 @@ class BracketSimulator:
                 (self.data["type"] == "T") & 
                 (self.data["current_round"] == 64)
             ].copy()
+            current_matchups['team1_path_odds'] = 1
+            current_matchups['team2_path_odds'] = 1
 
             log_memory_usage("After copying round 64 data")
 
@@ -61,9 +64,8 @@ class BracketSimulator:
         if model is None:
 
             # get all data that was not in this years tournament
-            ## ignore 2025 for now because its not complete
             training_data = self.data[
-                ((self.data["year"] != self.year) & (self.data["year"] != 2025)) | 
+                ((self.data["year"] < self.year) & (self.year - self.data["year"]) > 5) | 
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
             model, predictors = self.train_model(training_data)
@@ -125,7 +127,7 @@ class BracketSimulator:
             'tov_percent_diff', 'tov_percent_d_diff', 'adj_tempo_diff', 
             '3p_percent_diff', '3p_rate_diff', '2p_percent_diff', 'exp_diff', 
             'eff_hgt_diff', 'talent_diff', 'elite_sos_diff', 'win_percent_diff',
-            '3p_percent_d_diff', '2p_percent_d_diff'
+            '3p_percent_d_diff', '2p_percent_d_diff', 'recent_wab_diff'
         ]
 
         # apply feature weights
@@ -148,19 +150,20 @@ class BracketSimulator:
             training_data["weight"] *= (1 + (abs(training_data["badj_d_diff"]) - abs(training_data["badj_o_diff"])).clip(lower=0))
 
         # apply further weight to tournament games
-        training_data["weight"] *= training_data["type"].map({"T": 5, "RS": 1}).fillna(1)
+        tourney_weight = 10
+        training_data["weight"] *= training_data["type"].map({"T": tourney_weight, "RS": 1}).fillna(1)
 
         # ensure weights are always positive and non-zero
         training_data["weight"] = training_data["weight"].clip(lower=0.01).fillna(0.01)
 
         # train the model
         model = XGBClassifier(
-            n_estimators=130,
-            max_depth=5,
-            learning_rate=0.2,
+            n_estimators=50,
+            max_depth=9,
+            learning_rate=0.25,
             subsample=0.9,
-            colsample_bytree=1,
-            gamma=5,
+            colsample_bytree=0.8,
+            gamma=2,
             random_state=44,
             tree_method='hist'
         )
@@ -184,11 +187,23 @@ class BracketSimulator:
         # get win probabilities (value represents probability of team_1 winning)
         probs = model.predict_proba(matchups[predictors])
         matchups.loc[:, "win probability"] = probs[:, 1]
+        p = matchups["win probability"]
+
+        # factor in path likelihoods
+        alpha = 1.5 # weighting of path odds vs win prob
+        adjusted_p = (p * (matchups["team1_path_odds"] ** alpha)) / (
+            (p * (matchups["team1_path_odds"] ** alpha)) + ((1 - p) * (matchups["team2_path_odds"] ** alpha))
+        )
+        matchups["adj win probability"] = adjusted_p
+
+        # update path likelihoods for next round
+        matchups["team1_path_odds"] *= matchups["win probability"]
+        matchups["team2_path_odds"] *= (1 - matchups["win probability"])
 
         # add a little normally distributed randomness for fun :)
         randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
         randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
-        matchups["win probability"] = np.clip(matchups["win probability"] + randomness, 0.001, 0.999)
+        matchups["adj win probability"] = np.clip(matchups["adj win probability"] + randomness, 0.001, 0.999)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
@@ -212,19 +227,9 @@ class BracketSimulator:
         mask_upset_underdog = (matchups["seed_1"] > matchups["seed_2"]) & ((matchups["seed_1"] - matchups["seed_2"]) >= 1)
         mask_upset_favorite = (matchups["seed_1"] < matchups["seed_2"]) & ((matchups["seed_2"] - matchups["seed_1"]) >= 1)
         mask_similar = ~(mask_upset_underdog | mask_upset_favorite)
-        matchups.loc[mask_upset_underdog, "prediction"] = (matchups.loc[mask_upset_underdog, "win probability"] > threshold_lower_seed).astype(int)
-        matchups.loc[mask_upset_favorite, "prediction"] = (matchups.loc[mask_upset_favorite, "win probability"] > threshold_higher_seed).astype(int)
-        matchups.loc[mask_similar, "prediction"] = (matchups.loc[mask_similar, "win probability"] > 0.5).astype(int)
-
-        # apply close call strategy
-        matchups.loc[matchups["close_call_1"] & ~matchups["close_call_2"], "prediction"] = 0  
-        matchups.loc[matchups["close_call_2"] & ~matchups["close_call_1"], "prediction"] = 1 
-
-        # note close calls for the next round
-        close_thresh = 0.02
-        matchups.loc[:, "close_call_1"] = (matchups["win probability"] >= 0.5 - close_thresh) & (matchups["win probability"] <= 0.5 + close_thresh)  
-        matchups.loc[:, "close_call_2"] = (1 - matchups["win probability"] >= 0.5 - close_thresh) & (1 - matchups["win probability"] <= 0.5 + close_thresh)
-
+        matchups.loc[mask_upset_underdog, "prediction"] = (matchups.loc[mask_upset_underdog, "adj win probability"] > threshold_lower_seed).astype(int)
+        matchups.loc[mask_upset_favorite, "prediction"] = (matchups.loc[mask_upset_favorite, "adj win probability"] > threshold_higher_seed).astype(int)
+        matchups.loc[mask_similar, "prediction"] = (matchups.loc[mask_similar, "adj win probability"] > 0.5).astype(int)
 
         # force the user-picked winner to advance (1 if they are team_1, 0 if they are team_2 to match input data)
         matchups.loc[matchups["team_1"] == self.picked_winner, "prediction"] = 1
@@ -244,6 +249,7 @@ class BracketSimulator:
 
         # get the winning data based on who won
         winning_data = np.where(winner_mask[:, None], winner_data_1.values, winner_data_2.values)
+        winning_path_odds = np.where(winner_mask, matchups["team1_path_odds"], matchups["team2_path_odds"])
 
         # create df
         next_round_teams = pd.DataFrame(winning_data, columns=[col[:-2] for col in winner_data_1.columns])
@@ -251,6 +257,7 @@ class BracketSimulator:
         # add year and current_round
         next_round_teams["year"] = matchups["year"].values
         next_round_teams["current_round"] = matchups["current_round"].values / 2
+        next_round_teams["path_odds"] = winning_path_odds
 
         return next_round_teams
 
@@ -270,14 +277,16 @@ class BracketSimulator:
             'current_round': team1['current_round'],
             'team_2': team2['team'],
             'seed_2': team2['seed'],
-            'round_2': team2['round'],
-            'close_call_1': team1['close_call'],
-            'close_call_2': team2['close_call']
+            'round_2': team2['round']
         })
+        
+        # separate path odds
+        matchups["team1_path_odds"] = team1["path_odds"]
+        matchups["team2_path_odds"] = team2["path_odds"]
 
         # add stat columns (team 1, team 2, and difference)
         stat_variables = [
-            'badj_em', 'badj_o', 'badj_d', 'wab', 'barthag', 'efg', 'efg_d',
+            'badj_em', 'badj_o', 'badj_d', 'wab', 'recent_wab', 'barthag', 'efg', 'efg_d',
             'ft_rate', 'ft_rate_d', 'tov_percent', 'tov_percent_d', 'adj_tempo',
             '3p_percent', '3p_rate', '2p_percent', '3p_percent_d', '2p_percent_d',
             'exp', 'eff_hgt', 'talent', 'elite_sos', 'win_percent'
@@ -293,4 +302,4 @@ class BracketSimulator:
 #data = pd.read_parquet("data/all_matchup_stats.parquet")
 #simulator = BracketSimulator(data, 2025)
 #simulator.sim_bracket()
-#print(simulator.predicted_bracket.tail(10))
+#print(simulator.predicted_bracket[['team_1', 'team_2', 'current_round', 'win probability', 'adj win probability', 'prediction']]) 
