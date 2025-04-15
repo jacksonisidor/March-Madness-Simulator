@@ -100,8 +100,8 @@
       justify-content: space-evenly;
       margin-left: 25px;
       width: 95vw;
-      max-width: 1400px;
-      min-width: 1400px;  /* no resizing, might change later. already added some dynamic resizing */
+      max-width: 1550px;
+      min-width: 1550px;  /* no resizing, might change later. already added some dynamic resizing */
       position: relative;
     }
     .bracket-column {
@@ -147,12 +147,12 @@
       box-sizing: border-box;
       background-color: #f0f0f0;
       border: 1px solid black;
-      padding: 1px;
+      padding: 2px;
       border-radius: 3px;
       text-align: center;
       font-weight: bold;
       font-size: 12px;
-      min-width: 80px;
+      min-width: 100px;
     }
     .bracket-matchup {
       display: flex;
@@ -170,6 +170,12 @@
       transform: translateX(30%);
       font-weight: bold;
     }
+    .seed {
+      font-weight: bold;
+      font-size: 11px;
+      color: #666;
+    }
+
 
     #champion-team {
       background: gold;
@@ -213,9 +219,9 @@
         border-radius: 4px;
     }
     .fixed-width-container {
-      width: 1400px;
-      min-width: 1400px;
-      max-width: 1400px;
+      width: 1550px;
+      min-width: 1550px;
+      max-width: 1550px;
       margin: 0;            /* Remove auto margins */
       align-self: flex-start; /* Override body centering */
     }
@@ -342,7 +348,6 @@
 
     // Convert the Python object to JSON
     const bracketData = JSON.parse('{{ formatted_bracket|tojson|safe }}');
-    console.log("Bracket Data:", bracketData);
 
     // map round numbers
     function getLeftRoundId(roundNum) {
@@ -386,22 +391,35 @@
           if (!matchup.team2 || matchup.team2.trim() === "") {
             const singleDiv = document.createElement("div");
             singleDiv.classList.add("bracket-team");
-            singleDiv.textContent = matchup.team1;
+
+            // 👇 Use innerHTML so we can apply the styled seed span
+            singleDiv.innerHTML = `<span class="seed">${matchup.seed1}.</span> ${matchup.team1}`;
             singleDiv.setAttribute("data-team", matchup.team1);
             singleDiv.style.backgroundColor = getTeamColor(matchup.p1);
             singleDiv.setAttribute('data-confidence', `${(matchup.p1 * 100).toFixed(1)}%`);
+            if (roundNumber > 1 && 'team1_actual' in matchup && matchup.team1_actual !== undefined) {
+              singleDiv.innerHTML += matchup.team1_actual ? " ✅" : " ❌";
+            }
             matchupDiv.appendChild(singleDiv);
-          } else {
+          }
+
+          else {
             const team1Div = document.createElement("div");
             team1Div.classList.add("bracket-team");
-            team1Div.textContent = matchup.team1;
+            let check = (roundNumber > 1 && matchup.team1_actual !== undefined)
+                ? (matchup.team1_actual ? " ✅" : " ❌")
+                : "";
+            team1Div.innerHTML = `<span class="seed">${matchup.seed1}.</span> ${matchup.team1}${check}`;
             team1Div.setAttribute("data-team", matchup.team1);
             team1Div.style.backgroundColor = getTeamColor(matchup.p1);
             team1Div.setAttribute('data-confidence', `${(matchup.p1 * 100).toFixed(1)}%`);
 
             const team2Div = document.createElement("div");
             team2Div.classList.add("bracket-team");
-            team2Div.textContent = matchup.team2;
+            let check2 = (roundNumber > 1 && matchup.team2_actual !== undefined)
+                ? (matchup.team2_actual ? " ✅" : " ❌")
+                : "";
+            team2Div.innerHTML = `<span class="seed">${matchup.seed2}.</span> ${matchup.team2}${check2}`;
             team2Div.setAttribute("data-team", matchup.team2);
             team2Div.style.backgroundColor = getTeamColor(matchup.p2);
             team2Div.setAttribute('data-confidence', `${(matchup.p2 * 100).toFixed(1)}%`);
@@ -424,22 +442,33 @@
           if (!matchup.team1 || matchup.team1.trim() === "") {
             const singleDiv = document.createElement("div");
             singleDiv.classList.add("bracket-team");
-            singleDiv.textContent = matchup.team2;
+
+            singleDiv.innerHTML = `<span class="seed">${matchup.seed2}.</span> ${matchup.team2}`;
             singleDiv.setAttribute("data-team", matchup.team2);
             singleDiv.style.backgroundColor = getTeamColor(matchup.p2);
             singleDiv.setAttribute('data-confidence', `${(matchup.p2 * 100).toFixed(1)}%`);
+            if (roundNumber > 2 && 'team2_actual' in matchup && matchup.team2_actual !== undefined) {
+              singleDiv.innerHTML += matchup.team2_actual ? " ✅" : " ❌";
+            }
             matchupDiv.appendChild(singleDiv);
+
           } else {
             const team1Div = document.createElement("div");
             team1Div.classList.add("bracket-team");
-            team1Div.textContent = matchup.team1;
+            let check = (roundNumber > 1 && matchup.team1_actual !== undefined)
+                  ? (matchup.team1_actual ? " ✅" : " ❌")
+                  : "";
+            team1Div.innerHTML = `<span class="seed">${matchup.seed1}.</span> ${matchup.team1}${check}`;
             team1Div.setAttribute("data-team", matchup.team1);
             team1Div.style.backgroundColor = getTeamColor(matchup.p1);
             team1Div.setAttribute('data-confidence', `${(matchup.p1 * 100).toFixed(1)}%`);
 
             const team2Div = document.createElement("div");
             team2Div.classList.add("bracket-team");
-            team2Div.textContent = matchup.team2;
+            let check2 = (roundNumber > 1 && matchup.team2_actual !== undefined)
+                ? (matchup.team2_actual ? " ✅" : " ❌")
+                : "";
+            team2Div.innerHTML = `<span class="seed">${matchup.seed2}.</span> ${matchup.team2}${check2}`;
             team2Div.setAttribute("data-team", matchup.team2);
             team2Div.style.backgroundColor = getTeamColor(matchup.p2);
             team2Div.setAttribute('data-confidence', `${(matchup.p2 * 100).toFixed(1)}%`);
@@ -452,10 +481,40 @@
     }
 
       // Set champion if available
-      if (roundNumber === 7 && rightSide.length > 0) {
-        const champion = rightSide[0].winner || "";
-        document.getElementById("champion-team").textContent = "🏆 " + champion + " 🏆";
+      if (roundNumber === 7) {
+        const championData = rightSide[0] || leftSide[0];  // just for the predicted winner name
+        const champion = championData.winner || "";
+
+        // Search all final-four matchups (both sides) to get correct "actual" value
+        let actual = false;
+        const finalFourMatchups = [...leftSide, ...rightSide];
+        for (const matchup of finalFourMatchups) {
+          if (matchup.team1 === champion && 'team1_actual' in matchup) {
+            actual = matchup.team1_actual;
+            break;
+          }
+          if (matchup.team2 === champion && 'team2_actual' in matchup) {
+            actual = matchup.team2_actual;
+            break;
+          }
+        }
+
+        const teamBox = document.getElementById("champion-team");
+        teamBox.textContent = "🏆 " + champion + " 🏆";
+
+        // Add check/X badge
+        const badge = document.createElement("div");
+        badge.textContent = actual ? "✅" : "❌";
+        badge.style.position = "absolute";
+        badge.style.top = "-25px";
+        badge.style.right = "-25px";
+        badge.style.fontSize = "20px";
+        badge.style.padding = "2px 4px";
+        teamBox.appendChild(badge);
       }
+
+
+
     });
   } 
 

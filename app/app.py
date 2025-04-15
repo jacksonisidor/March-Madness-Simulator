@@ -215,45 +215,101 @@ def generate_score_distribution(user_score, sim_scores, public_user_avg=None):
 def format_bracket(results):
     num_rounds = 7
     bracket_structure = [[] for _ in range(num_rounds)]
+
+    # load ACTUAL teams that reached each round
+    actual_data = get_matchup_data()
+    actual = actual_data[(actual_data["year"] == results['year'].iloc[0]) & (actual_data["type"] == "T")]
+    actual_teams_per_round = {}
+    for _, row in actual.iterrows():
+        round_index = int(round(np.log2(64 / row['current_round'])))
+        teams = actual_teams_per_round.setdefault(round_index, set())
+        teams.update([row['team_1'], row['team_2']])
+
+    # add each game with prediction and whether each team actually made it to that round
     for _, row in results.iterrows():
         round_index = int(round(np.log2(64 / row['current_round'])))
         winner = 0 if row["prediction"] == 1 else 1
         p1 = row['adj win probability']
-        p2 = 1 - p1  
+        p2 = 1 - p1
         confidence = f"{round(max(p1, p2) * 100, 1)}%"
         seed_1 = round(row['seed_1'])
         seed_2 = round(row['seed_2'])
-        matchup = [row['team_1'], row['team_2'], p1, p2, winner, seed_1, seed_2, confidence]
+
+        # check which teams actually made it to each round (for bracket visualization)
+        team1_actual = row['team_1'] in actual_teams_per_round.get(round_index, set())
+        team2_actual = row['team_2'] in actual_teams_per_round.get(round_index, set())
+
+        matchup = [
+            row['team_1'], row['team_2'], p1, p2, winner,
+            seed_1, seed_2, confidence,
+            team1_actual, team2_actual 
+        ]
         bracket_structure[round_index].append(matchup)
-    final_game = results[results['current_round'] == 2].iloc[0]
-    final_matchup = bracket_structure[-2][0]
-    final_winner = final_matchup[0] if final_game['prediction'] == 1 else final_matchup[1]
-    bracket_structure[-1].append([final_winner, "", "", "", 0, "", "", ""])
-    del results
+
+    # final game winner logic (current_round == 2)
+    actual_final_game = actual[actual['current_round'] == 2].iloc[0]
+    predicted_final_game = results[results['current_round'] == 2].iloc[0]
+
+    predicted_winner = predicted_final_game['team_1'] if predicted_final_game['prediction'] == 1 else predicted_final_game['team_2']
+    actual_winner = actual_final_game['team_1'] if actual_final_game['winner'] == 1 else actual_final_game['team_2']
+
+    team1 = predicted_winner
+    team2 = ""
+    team1_actual = predicted_winner == actual_winner
+    team2_actual = False
+
+    bracket_structure[-1].append([
+        team1, team2, "", "", 0, "", "", "", team1_actual, team2_actual
+    ])
+
+    del results, actual, actual_data, actual_teams_per_round
     gc.collect()
     return bracket_structure
 
-# convert the bracket to a dictionary for rendering the template
+
 def convert_bracket_format(simulation_output):
     formatted_bracket = {"rounds": []}
     num_rounds = len(simulation_output)
+
     for round_index, matchups in enumerate(simulation_output):
         round_data = {"round": round_index + 1, "left": [], "right": []}
+
         if round_index == 5 and len(matchups) == 1:
-            team1, team2, p1, p2, winner_index, seed_1, seed_2, confidence = matchups[0]
-            round_data["left"].append({"team1": team1, "team2": "", "p1": p1, "p2": p2, "winner": ""})
-            round_data["right"].append({"team1": "", "team2": team2, "p1": p1, "p2": p2, "winner": ""})
+            team1, team2, p1, p2, winner_index, seed_1, seed_2, confidence, team1_actual, team2_actual = matchups[0]
+            round_data["left"].append({
+                "team1": team1, "team2": "", "p1": p1, "p2": p2, "winner": "",
+                "team1_actual": team1_actual, "team2_actual": False,
+                "seed1": seed_1, "seed2": seed_2
+            })
+            round_data["right"].append({
+                "team1": "", "team2": team2, "p1": p1, "p2": p2, "winner": "",
+                "team1_actual": False, "team2_actual": team2_actual,
+                "seed1": seed_1, "seed2": seed_2
+            })
+
         else:
             mid_point = len(matchups) // 2
             for i, match in enumerate(matchups):
-                team1, team2, p1, p2, winner_index, *_ = match  
+                team1, team2, p1, p2, winner_index, *_extras = match
+                team1_actual = match[8] if len(match) > 8 else False
+                team2_actual = match[9] if len(match) > 9 else False
                 winner = team1 if winner_index == 0 else team2
-                const_obj = {"team1": team1, "team2": team2, "p1": p1, "p2": p2, "winner": winner}
+                seed_1 = _extras[0] if len(_extras) > 0 else ""
+                seed_2 = _extras[1] if len(_extras) > 1 else ""
+
+                const_obj = {
+                    "team1": team1, "team2": team2, "p1": p1, "p2": p2,
+                    "winner": winner, "team1_actual": team1_actual, "team2_actual": team2_actual,
+                    "seed1": seed_1, "seed2": seed_2
+                }
+
                 if i < mid_point:
                     round_data["left"].append(const_obj)
                 else:
                     round_data["right"].append(const_obj)
+
         formatted_bracket["rounds"].append(round_data)
+
     return formatted_bracket
 
 # get the correct ordinal suffix for a percentile
