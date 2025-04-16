@@ -223,6 +223,7 @@ def format_bracket(results):
     # load ACTUAL teams that reached each round
     actual_data = get_matchup_data()
     actual = actual_data[(actual_data["year"] == results['year'].iloc[0]) & (actual_data["type"] == "T")]
+    tournament_complete = actual.shape[0] > 0
     actual_teams_per_round = {}
     for _, row in actual.iterrows():
         round_index = int(round(np.log2(64 / row['current_round'])))
@@ -268,7 +269,8 @@ def format_bracket(results):
 
     del results, actual, actual_data, actual_teams_per_round
     gc.collect()
-    return bracket_structure
+
+    return bracket_structure, tournament_complete
 
 
 def convert_bracket_format(simulation_output):
@@ -356,7 +358,7 @@ def simulate():
         simulator = BracketSimulator(data, year, picked_winner, playstyle, boldness)
         simulator.sim_bracket()
         log_memory_usage("After sim_bracket")
-        predictions = format_bracket(simulator.predicted_bracket)
+        predictions, tournament_complete = format_bracket(simulator.predicted_bracket)
         try:
             odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet",
                                           columns=["score"],
@@ -373,6 +375,7 @@ def simulate():
         session['simulation_results'] = predictions
         session['score'] = score
         session['percentile'] = percentile
+        session['tournament_complete'] = tournament_complete
         log_memory_usage("Before returning response")
         return jsonify({'redirect_url': url_for('results')})
     except Exception as e:
@@ -385,13 +388,15 @@ def results():
     raw_results = session.get('simulation_results')
     score = session.get('score')
     percentile = session.get('percentile')
+    tournament_complete = session.get('tournament_complete', False)
 
     if raw_results is None:  # If results are missing, redirect home
         return redirect(url_for('home'))
 
     formatted_bracket = convert_bracket_format(raw_results)
     return render_template('results.html', selected_params=selected_params, results=raw_results,
-                           formatted_bracket=formatted_bracket, score=score, percentile=percentile)
+                           formatted_bracket=formatted_bracket, score=score, percentile=percentile,
+                           tournament_complete=tournament_complete)
 
 @app.route('/analytics')
 def analytics():

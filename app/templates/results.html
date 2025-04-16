@@ -347,6 +347,7 @@
   <script>
 
     // Convert the Python object to JSON
+    const includeActualResults = {{ 'true' if tournament_complete else 'false' }};
     const bracketData = JSON.parse('{{ formatted_bracket|tojson|safe }}');
 
     // map round numbers
@@ -397,7 +398,7 @@
             singleDiv.setAttribute("data-team", matchup.team1);
             singleDiv.style.backgroundColor = getTeamColor(matchup.p1);
             singleDiv.setAttribute('data-confidence', `${(matchup.p1 * 100).toFixed(1)}%`);
-            if (roundNumber > 1 && 'team1_actual' in matchup && matchup.team1_actual !== undefined) {
+            if (includeActualResults && roundNumber > 1 && 'team1_actual' in matchup && matchup.team1_actual !== undefined) {
               singleDiv.innerHTML += matchup.team1_actual ? " ✅" : " ❌";
             }
             matchupDiv.appendChild(singleDiv);
@@ -447,7 +448,7 @@
             singleDiv.setAttribute("data-team", matchup.team2);
             singleDiv.style.backgroundColor = getTeamColor(matchup.p2);
             singleDiv.setAttribute('data-confidence', `${(matchup.p2 * 100).toFixed(1)}%`);
-            if (roundNumber > 2 && 'team2_actual' in matchup && matchup.team2_actual !== undefined) {
+            if (includeActualResults && roundNumber > 2 && 'team2_actual' in matchup && matchup.team2_actual !== undefined) {
               singleDiv.innerHTML += matchup.team2_actual ? " ✅" : " ❌";
             }
             matchupDiv.appendChild(singleDiv);
