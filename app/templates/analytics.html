@@ -102,9 +102,9 @@
             <li>
               {% set diff_avg = user_score - public_user_avg %}
               {% if diff_avg < 0 %}
-                {{ diff_avg|abs }} points worse than the average user (per marchmadness.com)
+                {{ diff_avg|abs }} points worse than the average user<sup> *</sup>
               {% else %}
-                {{ diff_avg }} points better than the average user (per marchmadness.com)
+                {{ diff_avg }} points better than the average user<sup> *</sup>
               {% endif %}
             </li>
           {% endif %}
@@ -120,6 +120,9 @@
           {% endif %}
         </ul>
         {% if score_histogram %}
+          <p style="font-size: 0.9em; color: #555; margin-top: 2px;">
+            <sup>*</sup> Based on user data from <em>marchmadness.com</em> and <em>espn.com</em> for available years.
+          </p>
           <img src="data:image/png;base64,{{ score_histogram }}" alt="Score Distribution">
         {% else %}
           <p>No data available.</p>

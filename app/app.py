@@ -174,7 +174,7 @@ def calculate_average_confidence(bracket):
     return None
 
 # plot simulated scores and return a base64 image URL
-def generate_score_distribution(user_score, sim_scores, public_user_avg=None):
+def generate_score_distribution(user_score, sim_scores, public_user_avg=None, seed_based_score=None):
     bg_color = "#f0f0f0"
     fig = plt.figure(figsize=(7, 4), facecolor=bg_color)
     ax = fig.add_subplot(111)
@@ -190,11 +190,15 @@ def generate_score_distribution(user_score, sim_scores, public_user_avg=None):
     if user_score is not None:
         ax.axvline(user_score, color='red', linestyle='dashed', linewidth=2, label='Your Score', ymin=0, ymax=0.8)
         y_user = np.interp(user_score, x_kde, y_kde)
-        ax.text(user_score + 10, y_user + 0.0001, "You", ha='left', va='center', fontsize=10, color='red')
+        ax.text(user_score + 10, y_user + 0.0003, "You", ha='left', va='center', fontsize=10, color='red')
     if public_user_avg is not None:
         ax.axvline(public_user_avg, color='blue', linestyle='dotted', linewidth=2, label='Avg User Score', ymin=0, ymax=0.8)
         y_avg = np.interp(public_user_avg, x_kde, y_kde)
-        ax.text(public_user_avg + 10, y_avg + 0.0001, "User Avg", ha='left', va='center', fontsize=10, color='blue')
+        ax.text(public_user_avg + 10, y_avg + 0.0001, "Avg User", ha='left', va='center', fontsize=10, color='blue')
+    if seed_based_score is not None:
+        ax.axvline(seed_based_score, color='green', linestyle='dotted', linewidth=2, label='Seed Based Score', ymin=0, ymax=0.8)
+        y_avg = np.interp(seed_based_score, x_kde, y_kde)
+        ax.text(seed_based_score + 10, y_avg + 0.0005, "Chalk", ha='left', va='center', fontsize=10, color='green')
     ax.set_yticks([])
     ax.set_ylabel("")
     max_y = max(y_kde)
@@ -413,7 +417,7 @@ def analytics():
             public_user_avg = round(public_user_avg * 10)
         seed_based_score = round((ps.loc[ps.year == year, "seed_based_score"].iloc[0]) * 10)
         points_possible = 1920
-        score_hist_url = generate_score_distribution(user_score, odds_sim_scores, public_user_avg)
+        score_hist_url = generate_score_distribution(user_score, odds_sim_scores, public_user_avg, seed_based_score)
     else:
         odds_sim_scores = None
         public_user_avg = None
