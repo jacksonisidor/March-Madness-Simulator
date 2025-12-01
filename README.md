@@ -44,7 +44,8 @@ A Flask-based web application that allows users to generate an optimized March M
 2. The Simulator
     - Based on historical matchup data (all CBB games since 2008, regular-season included) and statistical modeling
         - Analyzes differences in important statistics like offensive/defensive efficiency, tempo, etc.
-        - A single matchup predictor with XGBoost at its core
+        - A single matchup predictor with XGBoost at its core with nuanced factors (described below)
+           - *currently experimenting with creative neural network architectures to accomplish similar goals*
     - Passes winners on to the next round to play the other corresponding winner
     - Nuanced predictions:
         - Applies real bracket-making strategies, like limiting the success of teams that are predicted to have close matchups early in the tournament
