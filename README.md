@@ -46,12 +46,12 @@ A Flask-based web application that allows users to generate an optimized March M
         - Analyzes differences in important statistics like offensive/defensive efficiency, tempo, etc.
         - A single matchup predictor with XGBoost at its core with nuanced factors (described below)
            - *currently experimenting with creative neural network architectures to accomplish similar goals*
-    - Passes winners on to the next round to play the other corresponding winner
-    - Nuanced predictions:
+     - Nuanced predictions beyond isolated matchup probability:
         - Applies real bracket-making strategies, like limiting the success of teams that are predicted to have close matchups early in the tournament
         - Factors in path-likelihoods probabilistically in later stages of tournament
         - Adjusts feature weights, sample weights, and prediction thresholds based on user preferences
         - Weights tournament games 5x higher than regular season games in training
+    - Passes winners on to the next round to play the other corresponding winner
     - Evaluated and optimized with a customized hybrid metric
         - 0.7 * weighted_accuracy + 0.3 * bracket_score
         - Bracket score is too volatile to be the lone metric with points doubling each round. The championship game is worth 32 first round games.
