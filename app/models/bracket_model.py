@@ -10,6 +10,9 @@ import sys
 warnings.filterwarnings("ignore")
 import random
 
+import xgboost
+print("[DEBUG] xgboost version:", xgboost.__version__)
+
 SEED = 44
 os.environ["PYTHONHASHSEED"] = str(SEED)
 random.seed(SEED)
@@ -230,8 +233,7 @@ class BracketSimulator:
             colsample_bytree=0.8,
             gamma=2,
             random_state=44,
-            n_jobs=1,
-            tree_method='hist'
+            n_jobs=1
         )
 
         print("[DEBUG] model fit complete")
