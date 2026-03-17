@@ -223,7 +223,7 @@ def format_bracket(results):
     # load ACTUAL teams that reached each round
     actual_data = get_matchup_data()
     actual = actual_data[(actual_data["year"] == results['year'].iloc[0]) & (actual_data["type"] == "T")]
-    tournament_complete = actual.shape[0] > 0
+    tournament_complete = bool(actual[actual['current_round'] < 64].shape[0] > 0)
     actual_teams_per_round = {}
     for _, row in actual.iterrows():
         round_index = int(round(np.log2(64 / row['current_round'])))
@@ -252,19 +252,22 @@ def format_bracket(results):
         bracket_structure[round_index].append(matchup)
 
     # final game winner logic (current_round == 2)
-    actual_final_game = actual[actual['current_round'] == 2].iloc[0]
-    predicted_final_game = results[results['current_round'] == 2].iloc[0]
+    actual_final_game = actual[actual['current_round'] == 2]
+    print("actual_final_game rows:", len(actual_final_game))
 
-    predicted_winner = predicted_final_game['team_1'] if predicted_final_game['prediction'] == 1 else predicted_final_game['team_2']
-    actual_winner = actual_final_game['team_1'] if actual_final_game['winner'] == 1 else actual_final_game['team_2']
-
-    team1 = predicted_winner
-    team2 = ""
-    team1_actual = predicted_winner == actual_winner
-    team2_actual = False
+    if not actual_final_game.empty:
+        actual_final_game = actual_final_game.iloc[0]
+        predicted_final_game = results[results['current_round'] == 2].iloc[0]
+        predicted_winner = predicted_final_game['team_1'] if predicted_final_game['prediction'] == 1 else predicted_final_game['team_2']
+        actual_winner = actual_final_game['team_1'] if actual_final_game['winner'] == 1 else actual_final_game['team_2']
+        team1_actual = predicted_winner == actual_winner
+    else:
+        predicted_final_game = results[results['current_round'] == 2].iloc[0]
+        predicted_winner = predicted_final_game['team_1'] if predicted_final_game['prediction'] == 1 else predicted_final_game['team_2']
+        team1_actual = False
 
     bracket_structure[-1].append([
-        team1, team2, "", "", 0, "", "", "", team1_actual, team2_actual
+        predicted_winner, "", "", "", 0, "", "", "", team1_actual, False
     ])
 
     del results, actual, actual_data, actual_teams_per_round

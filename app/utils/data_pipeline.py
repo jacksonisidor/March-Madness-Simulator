@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from bs4 import BeautifulSoup
@@ -9,6 +10,8 @@ import pandas as pd
 import polars as pl
 import numpy as np
 import duckdb
+import requests
+from io import StringIO
 from datetime import timedelta
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -16,9 +19,7 @@ import time
 start_time = time.time()
 import gc
 from threading import Lock # for progress tracking
-snapshot_printed_years = set()
 eos_printed_years = set()
-printed_lock = Lock()
 
 
 '''
@@ -29,10 +30,16 @@ It does work as is, but I will improve readability soon.
 '''
 
 chrome_options = Options()
-chrome_options.add_argument("--headless")  # Enable headless mode
-chrome_options.add_argument("--disable-gpu")  # Disable GPU usage 
-chrome_options.add_argument("--no-sandbox")  # Recommended for Docker 
-chrome_options.add_argument("--disable-dev-shm-usage")  # Reduce resource usage
+# chrome_options.add_argument("--headless=new")  # Enable headless mode
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--window-size=1920,1080")
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--disable-background-networking")
+chrome_options.add_argument("--disable-features=Translate,BackForwardCache")
+chrome_options.add_argument("--start-minimized")
+chrome_options.add_argument("--window-position=-2000,0")
 
 # for tracking progress
 checkpoint_time = start_time
@@ -43,15 +50,45 @@ def log_checkpoint(message):
     checkpoint_time = now
 
 # for scraping urls
-def load_and_scrape_table(url):
-    driver = webdriver.Chrome(options=chrome_options)
-    try:
-        driver.get(url)
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "table")))
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        return soup.find('table')
-    finally:
-        driver.quit()
+
+def load_and_scrape_table(driver, url):
+    driver.get(url)
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.TAG_NAME, "table"))
+    )
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    table = soup.find('table')
+    if table is None:
+        raise ValueError("No table found on page")
+    return table
+
+def fetch_csv_with_retry(url, year, max_retries=3, timeout=30):
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "text/csv,text/plain,*/*"
+    }
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+
+            text = response.text.strip()
+
+            # If the site returns HTML instead of CSV
+            if text.lower().startswith("<!doctype html") or text.lower().startswith("<html"):
+                raise ValueError("Received HTML instead of CSV")
+
+            df = pd.read_csv(StringIO(text), engine="python")
+            return df
+
+        except Exception as e:
+            print(f"[CSV ERROR] year={year}, attempt={attempt}: {e}")
+
+            if attempt == max_retries:
+                raise
+
+            time.sleep(2)
 
 print("STARTING")
 
@@ -62,16 +99,15 @@ headers = ["DATE", "TYPE", "TEAM", "CONF.", "OPP.", "VENUE", "RESULT", "ADJ. O",
            "DREB%", "DFTR"]
 
 matchup_dfs = []
-years = range(2008, 2026)
+years = range(2026, 2007, -1)
 years = [year for year in years if year != 2020]
  
 for year in years:
 
-    driver = webdriver.Chrome(options=chrome_options)
-
     print(f"Working on {year} regular season matchups")
-    url = f"http://barttorvik.com/getgamestats.php?year={year}&csv=1"
-    year_matchups = pd.read_csv(url)
+    url = f"https://barttorvik.com/getgamestats.php?year={year}&csv=1"
+    year_matchups = fetch_csv_with_retry(url, year)
+    print(f"Finished reading {year}")
     year_matchups = year_matchups.iloc[:, :20]
     year_matchups.columns = headers
     matchup_dfs.append(year_matchups)
@@ -103,20 +139,52 @@ rs_matchups = rs_matchups.rename(columns={
 # filter out any games before 2008 (weird stuff with the website for early season games in 08)
 rs_matchups = rs_matchups[rs_matchups['exact_date'] > pd.Timestamp('2008-01-01')]
 
-log_checkpoint("Pulled in all RS matchups")
+log_checkpoint(f"Pulled in all RS matchups (shape = {rs_matchups.shape})")
 
-## PULL IN TEAM SNAPSHOTS
+## PULL IN TEAM SNAPSHOTS (very slow but important)
 
-# there are A LOT of snapshots to take, so parallelization speeds it up a bit
+from selenium.common.exceptions import TimeoutException
+def is_retryable_wab_error(e):
+    msg = str(e)
 
-def fetch_snapshot_data(row, headers, wab_headers):
+    # definitely retryable
+    if isinstance(e, TimeoutException):
+        return True
+    if "Timed out receiving message from renderer" in msg:
+        return True
+    if "timeout" in msg.lower():
+        return True
+
+    # definitely NOT retryable
+    if "24 columns passed, passed data had 0 columns" in msg:
+        return False
+    if "passed data had 0 columns" in msg:
+        return False
+    if "no usable WAB rows" in msg:
+        return False
+
+    # default: retry
+    return True
+
+def parse_wab_table(table, wab_headers, year, game_date, value_col="WAB"):
+    rows = table.find_all('tr')[1:]
+    data = [[cell.get_text(strip=True) for cell in row.find_all('td')] for row in rows]
+
+    # only keep rows with the expected number of columns
+    data = [row for row in data if len(row) == len(wab_headers)]
+
+    if len(data) == 0:
+        raise ValueError("No usable WAB rows")
+
+    df = pd.DataFrame(data, columns=wab_headers)
+    df = df[["TEAM", value_col]]
+    df["YEAR"] = year
+    df["exact_date"] = game_date
+    return df
+
+def fetch_snapshot_data(driver, row, headers, wab_headers):
     year = row['year']
     game_date = row['exact_date']
-
-    with printed_lock:
-        if year not in snapshot_printed_years:
-            print(f"Working on {year} snapshots")
-            snapshot_printed_years.add(year)
 
     begin_date = f"{year-1}1101"
     end_date = (game_date - timedelta(days=1)).strftime("%Y%m%d")
@@ -129,53 +197,138 @@ def fetch_snapshot_data(row, headers, wab_headers):
     snapshot_df, wab_df, mom_df = None, None, None
 
     for attempt in range(3):
-        try:
-            # Snapshot Table
-            table = load_and_scrape_table(snapshot_url)
-            if table:
+            try:
+                table = load_and_scrape_table(driver, snapshot_url)
                 rows = table.find_all('tr')[1:]
                 data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
                 snapshot_df = pd.DataFrame(data, columns=headers)
                 snapshot_df['year'] = year
                 snapshot_df['exact_date'] = game_date
-            break
-        except Exception as e:
-            print(f"[Snapshot ERROR] {year} {game_date} attempt {attempt+1}")
-            time.sleep(1)
+                break
+            except Exception as e:
+                msg = str(e).split("Stacktrace:")[0].strip()
+                print(f"[Snapshot ERROR] {year} {game_date} attempt {attempt+1}: {type(e).__name__}: {msg}")
+                time.sleep(2)
 
     for attempt in range(3):
         try:
-            # WAB Table
-            table = load_and_scrape_table(wab_url)
-            if table:
-                rows = table.find_all('tr')[1:]
-                data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
-                wab_df = pd.DataFrame(data, columns=wab_headers)
-                wab_df = wab_df[["TEAM", "WAB"]]
-                wab_df["YEAR"] = year
-                wab_df["exact_date"] = game_date
+            table = load_and_scrape_table(driver, wab_url)
+            rows = table.find_all('tr')[1:]
+            data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
+
+            usable_rows = [row for row in data if len(row) == len(wab_headers)]
+            if len(usable_rows) == 0:
+                raise ValueError("No usable WAB rows")
+
+            wab_df = pd.DataFrame(usable_rows, columns=wab_headers)
+            wab_df = wab_df[["TEAM", "WAB"]]
+            wab_df["YEAR"] = year
+            wab_df["exact_date"] = game_date
             break
+
+        except ValueError as e:
+            if "No usable WAB rows" in str(e):
+                print(f"[WAB SKIP - NO ROWS] {game_date}")
+                break
+            else:
+                print(f"[WAB VALUE ERROR] {game_date} attempt {attempt+1}: {e}")
+                time.sleep(2)
+
         except Exception as e:
-            print(f"[WAB ERROR] {game_date} attempt {attempt+1}")
-            time.sleep(1)
+            msg = str(e).split("Stacktrace:")[0].strip()
+            print(f"[WAB RETRYABLE ERROR] {game_date} attempt {attempt+1}: {type(e).__name__}: {msg}")
+            time.sleep(2)
+
+    else:
+        print(f"[WAB GIVE UP] {game_date}: exhausted retries")
 
     for attempt in range(3):
         try:
-            # Momentum WAB Table
-            table = load_and_scrape_table(wab_mom_url)
-            if table:
-                rows = table.find_all('tr')[1:]
-                data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
-                mom_df = pd.DataFrame(data, columns=wab_headers)
-                mom_df = mom_df[["TEAM", "WAB"]].rename(columns={"WAB": "recent_wab"})
-                mom_df["YEAR"] = year
-                mom_df["exact_date"] = game_date
+            table = load_and_scrape_table(driver, wab_mom_url)
+            rows = table.find_all('tr')[1:]
+            data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
+
+            usable_rows = [row for row in data if len(row) == len(wab_headers)]
+            if len(usable_rows) == 0:
+                raise ValueError("No usable MOMENTUM WAB rows")
+
+            mom_df = pd.DataFrame(usable_rows, columns=wab_headers)
+            mom_df = mom_df[["TEAM", "WAB"]].rename(columns={"WAB": "recent_wab"})
+            mom_df["YEAR"] = year
+            mom_df["exact_date"] = game_date
             break
+
+        except ValueError as e:
+            if "No usable MOMENTUM WAB rows" in str(e):
+                print(f"[MOMENTUM WAB SKIP - NO ROWS] {game_date}")
+                break
+            else:
+                print(f"[MOMENTUM WAB VALUE ERROR] {game_date} attempt {attempt+1}: {e}")
+                time.sleep(2)
+
         except Exception as e:
-            print(f"[MOMENTUM WAB ERROR] {game_date} attempt {attempt+1}")
-            time.sleep(1)
+            msg = str(e).split("Stacktrace:")[0].strip()
+            print(f"[MOMENTUM WAB RETRYABLE ERROR] {game_date} attempt {attempt+1}: {type(e).__name__}: {msg}")
+            time.sleep(2)
+    else:
+        print(f"[MOMENTUM WAB GIVE UP] {game_date}: exhausted retries")
 
     return snapshot_df, wab_df, mom_df
+
+def process_year_snapshots(year, unique_snapshots, headers, wab_headers):
+    year_rows = (
+        unique_snapshots[unique_snapshots["year"] == year]
+        .sort_values("exact_date", ascending=True)
+        .to_dict("records")
+    )
+
+    if len(year_rows) == 0:
+        return year, [], [], []
+
+    print(f"Working on {year} snapshots")
+
+    snapshot_dfs = []
+    matchup_wabs = []
+    matchup_wabs_mom = []
+
+    driver = None
+    for driver_attempt in range(3):
+        try:
+            driver = webdriver.Chrome(options=chrome_options)
+            driver.set_page_load_timeout(30)
+            break
+        except Exception as e:
+            msg = str(e).split("Stacktrace:")[0].strip()
+            print(f"[DRIVER ERROR] {year} driver attempt {driver_attempt+1}: {type(e).__name__}: {msg}")
+            time.sleep(5)
+
+    if driver is None:
+        print(f"[YEAR SKIPPED] {year}: could not start driver")
+        return year, [], [], []
+
+    try:
+        for row in year_rows:
+            try:
+                snapshot_df, wab_df, mom_df = fetch_snapshot_data(driver, row, headers, wab_headers)
+
+                if snapshot_df is not None:
+                    snapshot_dfs.append(snapshot_df)
+                if wab_df is not None:
+                    matchup_wabs.append(wab_df)
+                if mom_df is not None:
+                    matchup_wabs_mom.append(mom_df)
+
+            except Exception as e:
+                msg = str(e).split("Stacktrace:")[0].strip()
+                print(f"[ROW ERROR] {row['year']} {row['exact_date']}: {type(e).__name__}: {msg}")
+
+    finally:
+        try:
+            driver.quit()
+        except Exception:
+            pass
+
+    return year, snapshot_dfs, matchup_wabs, matchup_wabs_mom
 
 # headers for the DataFrame taken from the website
 headers = ['', 'TEAM', 'ADJ OE', 'ADJ DE', 'BARTHAG', 'RECORD', 'WINS', 'GAMES', 'EFG', 'EFG D.', 
@@ -190,29 +343,41 @@ wab_headers = ["Rk", "TEAM", "Conf", "G", "Rec", "AdjOE", "AdjDE", "Barthag", "E
                        "3P%","3P%D","3PR O","3PR D","Adj T.","WAB"]
 
 # get unique (year, exact_date) combinations from rs_matchups.
-unique_snapshots = rs_matchups[['year', 'exact_date']].drop_duplicates()
+unique_snapshots = (
+    rs_matchups[['year', 'exact_date']]
+    .drop_duplicates()
+    .sort_values(['year', 'exact_date'], ascending=[False, True])
+    .reset_index(drop=True)
+)
 
 snapshot_dfs = []
 matchup_wabs = []
 matchup_wabs_mom = []
 
-rows = unique_snapshots.to_dict("records")
-max_threads = min(8, len(rows)) 
+max_threads = min(4, len(years))   # start with 2 for stability
 
-# do the threading
 with ThreadPoolExecutor(max_workers=max_threads) as executor:
-    futures = [executor.submit(fetch_snapshot_data, row, headers, wab_headers) for row in rows]
+    futures = {
+        executor.submit(process_year_snapshots, year, unique_snapshots, headers, wab_headers): year
+        for year in years
+    }
 
     for future in as_completed(futures):
-        snapshot_df, wab_df, mom_df = future.result()
-        if snapshot_df is not None:
-            snapshot_dfs.append(snapshot_df)
-        if wab_df is not None:
-            matchup_wabs.append(wab_df)
-        if mom_df is not None:
-            matchup_wabs_mom.append(mom_df)
+        year = futures[future]
+        try:
+            finished_year, year_snapshot_dfs, year_wabs, year_mom_wabs = future.result()
 
-log_checkpoint("Pulled in all matchup snapshots")
+            snapshot_dfs.extend(year_snapshot_dfs)
+            matchup_wabs.extend(year_wabs)
+            matchup_wabs_mom.extend(year_mom_wabs)
+
+            print(f"Finished {finished_year} snapshots")
+
+        except Exception as e:
+            msg = str(e).split("Stacktrace:")[0].strip()
+            print(f"[YEAR FUTURE ERROR] {year}: {type(e).__name__}: {msg}")
+
+log_checkpoint(f"Pulled in all matchup snapshots (snapshot_dfs={len(snapshot_dfs)}, wabs={len(matchup_wabs)})")
 
 # combine all snapshots into a single DataFrame
 team_stats_time_sensitive = pd.concat(snapshot_dfs, ignore_index=True)
@@ -223,7 +388,7 @@ combined_wab = pd.concat(matchup_wabs, ignore_index=True)
 # concatenate the momentum wab stats dfs
 combined_wab_mom = pd.concat(matchup_wabs_mom, ignore_index=True)
 
-del snapshot_dfs, matchup_wabs, matchup_wabs_mom, futures
+del snapshot_dfs, matchup_wabs, matchup_wabs_mom
 gc.collect()
 
 # some more processing on the main stats
@@ -281,42 +446,51 @@ for year in years:
     team_stats_url = f"https://barttorvik.com/team-tables_each.php?tvalue=All&year={year}&sort=&t2value=None&oppType=All&conlimit=All&top=0&quad=4&mingames=0&toprk=0&venue=All&type=R&yax=3"
     wab_url = f"https://barttorvik.com/?year={year}&sort=&hteam=&t2value=&conlimit=All&state=All&top=0&revquad=0&quad=5&venue=All&type=R&mingames=0#"
     wab_mom_url = f"https://barttorvik.com/?year={year}&sort=&hteam=&t2value=&conlimit=All&state=All&begin={begin_date_mom}&end={end_date}&top=0&revquad=0&quad=5&venue=All&type=R&mingames=0#"
-    
+
+    driver = None
     try:
-        # Team stats
-        table = load_and_scrape_table(team_stats_url)
-        if table:
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.set_page_load_timeout(30)
+
+        try:
+            table = load_and_scrape_table(driver, team_stats_url)
             rows = table.find_all('tr')[1:]
             data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
             df = pd.DataFrame(data, columns=headers)
             eos_dfs.append(df)
-    except Exception as e:
-        print(f"[EOS SNAPSHOT ERROR] {year}: {e}")
+        except Exception as e:
+            print(f"[EOS SNAPSHOT ERROR] {year}: {type(e).__name__}: {str(e).split('Stacktrace:')[0].strip()}")
 
-    try:
-        # WAB Table
-        table = load_and_scrape_table(wab_url)
-        if table:
+        try:
+            table = load_and_scrape_table(driver, wab_url)
             rows = table.find_all('tr')[1:]
             data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
             df = pd.DataFrame(data, columns=wab_headers)[["TEAM", "WAB"]]
             df["YEAR"] = year
             eos_wabs.append(df)
-    except Exception as e:
-        print(f"[EOS WAB ERROR] {year}: {e}")
+        except Exception as e:
+            print(f"[EOS WAB ERROR] {year}: {type(e).__name__}: {str(e).split('Stacktrace:')[0].strip()}")
 
-    try:
-        # Momentum WAB Table
-        table = load_and_scrape_table(wab_mom_url)
-        if table:
+        try:
+            table = load_and_scrape_table(driver, wab_mom_url)
             rows = table.find_all('tr')[1:]
             data = [[cell.get_text() for cell in row.find_all('td')] for row in rows]
             df = pd.DataFrame(data, columns=wab_headers)[["TEAM", "WAB"]]
             df = df.rename(columns={"WAB": "recent_wab"})
             df["YEAR"] = year
             eos_wabs_mom.append(df)
+        except Exception as e:
+            print(f"[EOS MOMENTUM WAB ERROR] {year}: {type(e).__name__}: {str(e).split('Stacktrace:')[0].strip()}")
+
     except Exception as e:
-        print(f"[EOS MOMENTUM WAB ERROR] {year}: {e}")
+        print(f"[EOS DRIVER ERROR] {year}: {type(e).__name__}: {str(e).split('Stacktrace:')[0].strip()}")
+
+    finally:
+        if driver is not None:
+            try:
+                driver.quit()
+            except Exception:
+                pass
 
     print(f"Got all stats from {year}")
 
@@ -454,7 +628,7 @@ tourney_matchup_stats = pd.concat([tourney_matchup_stats, pd.DataFrame(matchup_i
 tourney_matchup_stats["winner"] = 1 * (tourney_matchup_stats["score_1"] > tourney_matchup_stats["score_2"])
 tourney_matchup_stats.drop(columns=["score_1", "score_2"], inplace=True)
 
-log_checkpoint("Tourney matchups + stats done")
+log_checkpoint(f"Tourney matchups + stats done (shape={tourney_matchup_stats.shape})")
 
 # MERGE REGULAR SEASON MATCHUPS WITH STATS
 
@@ -528,15 +702,13 @@ full_query = query.format(team1_cols=team1_cols, team2_cols=team2_cols)
 rs_matchups_with_stats = con.execute(full_query).df()
 con.close()
 
-log_checkpoint("Added all team stats to RS matchups")
+log_checkpoint(f"Added all team stats to RS matchups (shape={rs_matchups_with_stats.shape})")
 
 filtered_columns = [col for col in rs_matchups_with_stats.columns if col.islower()]
 rs_matchups_with_stats = rs_matchups_with_stats[filtered_columns]
-
 rs_matchups_with_stats.columns = ['year' if 'year' in col else col for col in rs_matchups_with_stats.columns]
 rs_matchups_with_stats = rs_matchups_with_stats.loc[:,~rs_matchups_with_stats.columns.duplicated()].copy()
-
-log_checkpoint("Remove unwanted columns from RS matchups")
+print(f"After column filter: {rs_matchups_with_stats.shape}, columns: {rs_matchups_with_stats.columns.tolist()}")
 
 # create a unique matchup id so i can drop the rows that are the same as others but with team_1 and team_2 flipped
 # (make sure to not drop matchups that actually happened twice. duplicates are always next to each other)
@@ -544,8 +716,7 @@ rs_matchups_with_stats["matchup_id"] = rs_matchups_with_stats.apply(lambda row: 
                                                                     '-' + '-'.join(sorted([row['team_1'], row['team_2']])), 
                                                                     axis=1)
 rs_matchups_with_stats = rs_matchups_with_stats.drop_duplicates(subset=["matchup_id"])
-
-log_checkpoint("Added matchup id to RS data and dropped duplicate games")
+log_checkpoint(f"Dropped duplicate games (shape={rs_matchups_with_stats.shape})")
 
 ## BALANCE/SHUFFLE RS MATCHUPS 
 # order matters for tourney games, so leave that alone
@@ -608,14 +779,14 @@ all_matchup_stats = pd.concat([tourney_matchup_stats, rs_matchups_with_stats], i
 del tourney_matchup_stats, rs_matchups_with_stats
 gc.collect()
 
-log_checkpoint("Added rs_matchups under tourney matchups")
+log_checkpoint(f"Combined tourney + RS (shape={all_matchup_stats.shape}, type counts={all_matchup_stats['type'].value_counts().to_dict()})")
 
 # get the stat differences same as before
 stat_variables = [
     'badj_em', 'badj_o', 'badj_d', 'wab', 'recent_wab', 'barthag', 'efg', 'efg_d', 'ft_rate', 'ft_rate_d', 'tov_percent',
     'tov_percent_d', 'adj_tempo', '3p_percent', '3p_rate', '3p_percent_d', '2p_percent', '2p_percent_d', 
     'o_reb_percent', 'op_o_reb_percent', 'blk_percent', 'ast_percent', 'pppo', 'pppd',
-    'exp', 'eff_hgt', 'talent', 'elite_sos', 'win_percent'
+    'exp', 'eff_hgt', 'talent', 'elite_sos', 'win_percent', 'seed'
 ]
 
 # Create an empty DataFrame to store the stat differences
@@ -632,13 +803,14 @@ for variable in stat_variables:
 all_matchup_stats = pd.concat([all_matchup_stats, stat_diff_df], axis=1)
 del stat_diff_df
 gc.collect()
+print(f"After adding stat diffs (shape={all_matchup_stats.shape})")
 
 # CLEAN UP
-allowed_missing_cols = ['seed_1', 'seed_2', 'round_1', 'round_2', 'current_round', 'exact_date', 'matchup_id']
-rows_with_allowed_nulls = all_matchup_stats.isnull() & all_matchup_stats.columns.to_series().apply(lambda col: col in allowed_missing_cols)
-rows_with_other_nulls = all_matchup_stats.isnull() & ~all_matchup_stats.columns.to_series().apply(lambda col: col in allowed_missing_cols)
-mask = ~rows_with_other_nulls.any(axis=1)
-all_matchup_stats = all_matchup_stats[mask]
+#allowed_missing_cols = ['seed_1', 'seed_2', 'round_1', 'round_2', 'current_round', 'exact_date', 'matchup_id']
+#rows_with_allowed_nulls = all_matchup_stats.isnull() & all_matchup_stats.columns.to_series().apply(lambda col: col in allowed_missing_cols)
+#rows_with_other_nulls = all_matchup_stats.isnull() & ~all_matchup_stats.columns.to_series().apply(lambda col: col in allowed_missing_cols)
+#mask = ~rows_with_other_nulls.any(axis=1)
+#all_matchup_stats = all_matchup_stats[mask]
 
 # EXPORT DF
 directory = "data"

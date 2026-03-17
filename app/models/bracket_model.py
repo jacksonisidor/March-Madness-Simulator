@@ -63,9 +63,9 @@ class BracketSimulator:
         # only train model if it hasn't been trained yet
         if model is None:
 
-            # get all data that was not in this years tournament
+            # get all data that was not in this years tournament (and within recent years)
             training_data = self.data[
-                ((self.data["year"] < self.year) & (self.year - self.data["year"]) > 5) | 
+                ((self.data["year"] < self.year)) | 
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
             model, predictors = self.train_model(training_data)
@@ -190,7 +190,7 @@ class BracketSimulator:
         p = matchups["win probability"]
 
         # factor in path likelihoods
-        alpha = 1.5 # weighting of path odds vs win prob
+        alpha = 0.5 # weighting of path odds vs win prob
         adjusted_p = (p * (matchups["team1_path_odds"] ** alpha)) / (
             (p * (matchups["team1_path_odds"] ** alpha)) + ((1 - p) * (matchups["team2_path_odds"] ** alpha))
         )
@@ -300,6 +300,6 @@ class BracketSimulator:
 
 #FOR TESTING
 #data = pd.read_parquet("data/all_matchup_stats.parquet")
-#simulator = BracketSimulator(data, 2025)
+#simulator = BracketSimulator(data, 2026)
 #simulator.sim_bracket()
 #print(simulator.predicted_bracket[['team_1', 'team_2', 'current_round', 'win probability', 'adj win probability', 'prediction']]) 

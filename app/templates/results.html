@@ -388,12 +388,9 @@
           const matchupDiv = document.createElement("div");
           matchupDiv.classList.add("bracket-matchup");
 
-          // Single-team situation (bye)
           if (!matchup.team2 || matchup.team2.trim() === "") {
             const singleDiv = document.createElement("div");
             singleDiv.classList.add("bracket-team");
-
-            // 👇 Use innerHTML so we can apply the styled seed span
             singleDiv.innerHTML = `<span class="seed">${matchup.seed1}.</span> ${matchup.team1}`;
             singleDiv.setAttribute("data-team", matchup.team1);
             singleDiv.style.backgroundColor = getTeamColor(matchup.p1);
@@ -407,7 +404,8 @@
           else {
             const team1Div = document.createElement("div");
             team1Div.classList.add("bracket-team");
-            let check = (roundNumber > 1 && matchup.team1_actual !== undefined)
+            // CHANGED: added includeActualResults check
+            let check = (includeActualResults && roundNumber > 1 && matchup.team1_actual !== undefined)
                 ? (matchup.team1_actual ? " ✅" : " ❌")
                 : "";
             team1Div.innerHTML = `<span class="seed">${matchup.seed1}.</span> ${matchup.team1}${check}`;
@@ -417,7 +415,8 @@
 
             const team2Div = document.createElement("div");
             team2Div.classList.add("bracket-team");
-            let check2 = (roundNumber > 1 && matchup.team2_actual !== undefined)
+            // CHANGED: added includeActualResults check
+            let check2 = (includeActualResults && roundNumber > 1 && matchup.team2_actual !== undefined)
                 ? (matchup.team2_actual ? " ✅" : " ❌")
                 : "";
             team2Div.innerHTML = `<span class="seed">${matchup.seed2}.</span> ${matchup.team2}${check2}`;
@@ -443,7 +442,6 @@
           if (!matchup.team1 || matchup.team1.trim() === "") {
             const singleDiv = document.createElement("div");
             singleDiv.classList.add("bracket-team");
-
             singleDiv.innerHTML = `<span class="seed">${matchup.seed2}.</span> ${matchup.team2}`;
             singleDiv.setAttribute("data-team", matchup.team2);
             singleDiv.style.backgroundColor = getTeamColor(matchup.p2);
@@ -456,7 +454,8 @@
           } else {
             const team1Div = document.createElement("div");
             team1Div.classList.add("bracket-team");
-            let check = (roundNumber > 1 && matchup.team1_actual !== undefined)
+            // CHANGED: added includeActualResults check
+            let check = (includeActualResults && roundNumber > 1 && matchup.team1_actual !== undefined)
                   ? (matchup.team1_actual ? " ✅" : " ❌")
                   : "";
             team1Div.innerHTML = `<span class="seed">${matchup.seed1}.</span> ${matchup.team1}${check}`;
@@ -466,7 +465,8 @@
 
             const team2Div = document.createElement("div");
             team2Div.classList.add("bracket-team");
-            let check2 = (roundNumber > 1 && matchup.team2_actual !== undefined)
+            // CHANGED: added includeActualResults check
+            let check2 = (includeActualResults && roundNumber > 1 && matchup.team2_actual !== undefined)
                 ? (matchup.team2_actual ? " ✅" : " ❌")
                 : "";
             team2Div.innerHTML = `<span class="seed">${matchup.seed2}.</span> ${matchup.team2}${check2}`;
@@ -481,12 +481,11 @@
       });
     }
 
-      // Set champion if available
+      // Set champion
       if (roundNumber === 7) {
-        const championData = rightSide[0] || leftSide[0];  // just for the predicted winner name
+        const championData = rightSide[0] || leftSide[0];
         const champion = championData.winner || "";
 
-        // Search all final-four matchups (both sides) to get correct "actual" value
         let actual = false;
         const finalFourMatchups = [...leftSide, ...rightSide];
         for (const matchup of finalFourMatchups) {
@@ -503,21 +502,21 @@
         const teamBox = document.getElementById("champion-team");
         teamBox.textContent = "🏆 " + champion + " 🏆";
 
-        // Add check/X badge
-        const badge = document.createElement("div");
-        badge.textContent = actual ? "✅" : "❌";
-        badge.style.position = "absolute";
-        badge.style.top = "-25px";
-        badge.style.right = "-25px";
-        badge.style.fontSize = "20px";
-        badge.style.padding = "2px 4px";
-        teamBox.appendChild(badge);
+        // CHANGED: only add badge if tournament has results
+        if (includeActualResults) {
+          const badge = document.createElement("div");
+          badge.textContent = actual ? "✅" : "❌";
+          badge.style.position = "absolute";
+          badge.style.top = "-25px";
+          badge.style.right = "-25px";
+          badge.style.fontSize = "20px";
+          badge.style.padding = "2px 4px";
+          teamBox.appendChild(badge);
+        }
       }
 
-
-
     });
-  } 
+  }
 
 
     // Add dynamic highlighting to team boxes and connector lines
