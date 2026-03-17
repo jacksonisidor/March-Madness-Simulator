@@ -14,6 +14,7 @@ import sys
 import gc
 import random
 import inspect
+import platform
 
 SEED = 44
 os.environ["PYTHONHASHSEED"] = str(SEED)
@@ -25,6 +26,12 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+print("[DEBUG] platform:", platform.platform())
+print("[DEBUG] machine:", platform.machine())
+print("[DEBUG] python:", sys.version)
+print("[DEBUG] numpy:", np.__version__)
+print("[DEBUG] pandas:", pd.__version__)
 
 # start memory tracer for detailed memory snapshots
 tracemalloc.start()

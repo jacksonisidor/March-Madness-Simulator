@@ -9,6 +9,7 @@ import psutil, os
 import sys
 warnings.filterwarnings("ignore")
 import random
+import platform
 
 import xgboost
 print("[DEBUG] xgboost version:", xgboost.__version__)
@@ -23,6 +24,12 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+print("[DEBUG] platform:", platform.platform())
+print("[DEBUG] machine:", platform.machine())
+print("[DEBUG] python:", sys.version)
+print("[DEBUG] numpy:", np.__version__)
+print("[DEBUG] pandas:", pd.__version__)
 
 # function to log current memory usage
 def log_memory_usage(tag):
@@ -229,11 +236,14 @@ class BracketSimulator:
             n_estimators=50,
             max_depth=9,
             learning_rate=0.25,
-            subsample=0.9,
-            colsample_bytree=0.8,
+            subsample=1,
+            colsample_bytree=1,
             gamma=2,
             random_state=44,
-            n_jobs=1
+            n_jobs=1,
+            tree_method='exact',
+            device='cpu',
+            validate_parameters=True
         )
 
         print("[DEBUG] model fit complete")
