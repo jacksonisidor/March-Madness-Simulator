@@ -43,35 +43,16 @@ class BracketSimulator:
 
     
     def score_bracket(self):
+            predicted = self.predicted_bracket[['team_1', 'team_2', 'prediction', 'current_round']].reset_index(drop=True)
+            actual = self.data[(self.data["year"] == self.year) & (self.data["type"] == "T")][['team_1', 'team_2', 'winner', 'current_round']].reset_index(drop=True)
 
-        print("\n[DEBUG] score_bracket ENTER")
-        sys.stdout.flush()
+            mask1 = (predicted["team_1"] == actual["team_1"]) & (predicted["prediction"] == 1) & (actual["winner"] == 1)
+            mask2 = (predicted["team_2"] == actual["team_2"]) & (predicted["prediction"] == 0) & (actual["winner"] == 0)
 
-        predicted = self.predicted_bracket[['team_1', 'team_2', 'prediction', 'current_round']].reset_index(drop=True)
-        actual = self.data[(self.data["year"] == self.year) & (self.data["type"] == "T")][['team_1', 'team_2', 'winner', 'current_round']].reset_index(drop=True)
-        
-        print("[DEBUG] predicted score rows:", len(predicted))
-        print("[DEBUG] actual score rows:", len(actual))
-        print("[DEBUG] predicted rows:")
-        print(predicted.to_string())
-        print("[DEBUG] actual rows:")
-        print(actual.to_string())
-        sys.stdout.flush()
+            score = (((64 / predicted["current_round"]) * 10)[mask1].sum() + 
+                    ((64 / predicted["current_round"]) * 10)[mask2].sum())
 
-        mask1 = (predicted["team_1"] == actual["team_1"]) & (predicted["prediction"] == 1) & (actual["winner"] == 1)
-        mask2 = (predicted["team_2"] == actual["team_2"]) & (predicted["prediction"] == 0) & (actual["winner"] == 0)
-
-        print("[DEBUG] mask1 true count:", int(mask1.sum()))
-        print("[DEBUG] mask2 true count:", int(mask2.sum()))
-        print("[DEBUG] total correct picks:", int(mask1.sum() + mask2.sum()))
-        print("[DEBUG] computed score:", int(score))
-        sys.stdout.flush()
-        
-        score = (((64 / predicted["current_round"]) * 10)[mask1].sum() + 
-                 ((64 / predicted["current_round"]) * 10)[mask2].sum())
-        
-        return int(score)
-
+            return int(score)
         
     def sim_bracket(self, current_matchups=None, model=None, predictors=None):
 

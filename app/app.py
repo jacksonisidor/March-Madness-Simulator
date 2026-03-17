@@ -411,6 +411,9 @@ def simulate():
 
         log_memory_usage("After sim_bracket")
         predictions, tournament_complete = format_bracket(simulator.predicted_bracket)
+        print("[DEBUG] tournament_complete returned from format_bracket:", tournament_complete)
+        sys.stdout.flush()
+        
         try:
             odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet",
                                           columns=["score"],
@@ -421,6 +424,8 @@ def simulate():
             percentile = ordinal(int(percentileofscore(odds_sim_scores, score, kind='rank')))
             log_memory_usage("After scoring bracket")
         except Exception as e:
+            print("[DEBUG] scoring block failed:", repr(e))
+            sys.stdout.flush()
             score = None
             percentile = None
         session['selected_params'] = input_data
@@ -428,7 +433,7 @@ def simulate():
         session['score'] = score
         session['percentile'] = percentile
         session['tournament_complete'] = tournament_complete
-        
+
         print("[DEBUG] final score:", score)
         print("[DEBUG] final percentile:", percentile)
         print("[DEBUG] tournament_complete:", tournament_complete)
@@ -506,4 +511,4 @@ def analytics():
                            confident_upsets=confident_upsets, confidence_bar_url=confidence_bar_url)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
