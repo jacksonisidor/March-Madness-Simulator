@@ -20,6 +20,12 @@ os.environ["PYTHONHASHSEED"] = str(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
 
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 # start memory tracer for detailed memory snapshots
 tracemalloc.start()
 
@@ -413,7 +419,7 @@ def simulate():
         predictions, tournament_complete = format_bracket(simulator.predicted_bracket)
         print("[DEBUG] tournament_complete returned from format_bracket:", tournament_complete)
         sys.stdout.flush()
-        
+
         try:
             odds_sim_scores = pd.read_parquet("data/odds_sim_scores.parquet",
                                           columns=["score"],

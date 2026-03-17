@@ -15,6 +15,12 @@ os.environ["PYTHONHASHSEED"] = str(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
 
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 # function to log current memory usage
 def log_memory_usage(tag):
     process = psutil.Process(os.getpid())
@@ -224,7 +230,7 @@ class BracketSimulator:
             colsample_bytree=0.8,
             gamma=2,
             random_state=44,
-            # n_jobs=1,
+            n_jobs=1,
             tree_method='hist'
         )
 
