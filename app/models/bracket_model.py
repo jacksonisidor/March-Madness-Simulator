@@ -104,7 +104,7 @@ class BracketSimulator:
 
             # get all data that was not in this years tournament (and within recent years)
             training_data = self.data[
-                ((self.data["year"] < self.year)) | 
+                ((self.data["year"] < self.year) & (self.year - self.data["year"] <= 5)) | 
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
 
@@ -211,7 +211,7 @@ class BracketSimulator:
             training_data["weight"] *= (1 + (abs(training_data["badj_d_diff"]) - abs(training_data["badj_o_diff"])).clip(lower=0))
 
         # apply further weight to tournament games
-        tourney_weight = 1
+        tourney_weight = 5
         training_data["weight"] *= training_data["type"].map({"T": tourney_weight, "RS": 1}).fillna(1)
 
         # ensure weights are always positive and non-zero
@@ -233,12 +233,12 @@ class BracketSimulator:
 
         # train the model
         model = XGBClassifier(
-            n_estimators=75,
-            max_depth=7,
-            learning_rate=0.25,
-            subsample=1,
+            n_estimators=125,
+            max_depth=5,
+            learning_rate=0.05,
+            subsample=0.85,
             colsample_bytree=1,
-            gamma=0,
+            gamma=4,
             random_state=44,
             n_jobs=1,
             tree_method="hist",
@@ -289,7 +289,7 @@ class BracketSimulator:
         sys.stdout.flush()
 
         # factor in path likelihoods
-        alpha = 0.5 # weighting of path odds vs win prob
+        alpha = 1 # weighting of path odds vs win prob
         adjusted_p = (p * (matchups["team1_path_odds"] ** alpha)) / (
             (p * (matchups["team1_path_odds"] ** alpha)) + ((1 - p) * (matchups["team2_path_odds"] ** alpha))
         )
