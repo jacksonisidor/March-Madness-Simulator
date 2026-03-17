@@ -211,7 +211,7 @@ class BracketSimulator:
             training_data["weight"] *= (1 + (abs(training_data["badj_d_diff"]) - abs(training_data["badj_o_diff"])).clip(lower=0))
 
         # apply further weight to tournament games
-        tourney_weight = 10
+        tourney_weight = 1
         training_data["weight"] *= training_data["type"].map({"T": tourney_weight, "RS": 1}).fillna(1)
 
         # ensure weights are always positive and non-zero
@@ -233,26 +233,26 @@ class BracketSimulator:
 
         # train the model
         model = XGBClassifier(
-            n_estimators=50,
-            max_depth=9,
+            n_estimators=75,
+            max_depth=7,
             learning_rate=0.25,
             subsample=1,
             colsample_bytree=1,
-            gamma=2,
+            gamma=0,
             random_state=44,
             n_jobs=1,
-            tree_method='exact',
+            tree_method="hist",
             device='cpu',
             validate_parameters=True
         )
-
-        print("[DEBUG] model fit complete")
-        sys.stdout.flush()
 
         # fit the model
         model.fit(training_data[predictors], 
                 training_data["winner"], 
                 sample_weight=training_data["weight"])
+        
+        print("[DEBUG] model fit complete")
+        sys.stdout.flush()
 
         
         del training_data
