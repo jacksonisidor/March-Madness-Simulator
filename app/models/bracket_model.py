@@ -8,6 +8,12 @@ import gc
 import psutil, os
 import sys
 warnings.filterwarnings("ignore")
+import random
+
+SEED = 44
+os.environ["PYTHONHASHSEED"] = str(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
 
 # function to log current memory usage
 def log_memory_usage(tag):
@@ -27,13 +33,39 @@ class BracketSimulator:
         self.playstyle = playstyle
         self.predicted_bracket = None
 
+        print("[DEBUG] BracketSimulator.__init__")
+        print("[DEBUG] year:", self.year)
+        print("[DEBUG] picked_winner:", self.picked_winner)
+        print("[DEBUG] playstyle:", self.playstyle)
+        print("[DEBUG] boldness:", self.boldness)
+        print("[DEBUG] full data shape:", self.data.shape)
+        sys.stdout.flush()
+
     
     def score_bracket(self):
+
+        print("\n[DEBUG] score_bracket ENTER")
+        sys.stdout.flush()
+
         predicted = self.predicted_bracket[['team_1', 'team_2', 'prediction', 'current_round']].reset_index(drop=True)
         actual = self.data[(self.data["year"] == self.year) & (self.data["type"] == "T")][['team_1', 'team_2', 'winner', 'current_round']].reset_index(drop=True)
         
+        print("[DEBUG] predicted score rows:", len(predicted))
+        print("[DEBUG] actual score rows:", len(actual))
+        print("[DEBUG] predicted rows:")
+        print(predicted.to_string())
+        print("[DEBUG] actual rows:")
+        print(actual.to_string())
+        sys.stdout.flush()
+
         mask1 = (predicted["team_1"] == actual["team_1"]) & (predicted["prediction"] == 1) & (actual["winner"] == 1)
         mask2 = (predicted["team_2"] == actual["team_2"]) & (predicted["prediction"] == 0) & (actual["winner"] == 0)
+
+        print("[DEBUG] mask1 true count:", int(mask1.sum()))
+        print("[DEBUG] mask2 true count:", int(mask2.sum()))
+        print("[DEBUG] total correct picks:", int(mask1.sum() + mask2.sum()))
+        print("[DEBUG] computed score:", int(score))
+        sys.stdout.flush()
         
         score = (((64 / predicted["current_round"]) * 10)[mask1].sum() + 
                  ((64 / predicted["current_round"]) * 10)[mask2].sum())
@@ -42,6 +74,11 @@ class BracketSimulator:
 
         
     def sim_bracket(self, current_matchups=None, model=None, predictors=None):
+
+        print("\n[DEBUG] sim_bracket ENTER")
+        print("[DEBUG] current_matchups is None:", current_matchups is None)
+        print("[DEBUG] model is None:", model is None)
+        sys.stdout.flush()
 
         log_memory_usage("sim_bracket start")
 
@@ -58,6 +95,11 @@ class BracketSimulator:
             current_matchups['team2_path_odds'] = 1
 
             log_memory_usage("After copying round 64 data")
+        
+        print("[DEBUG] initial round64 shape:", current_matchups.shape)
+        print("[DEBUG] initial round64 matchups:")
+        print(current_matchups[["team_1", "team_2", "seed_1", "seed_2", "current_round"]].to_string())
+        sys.stdout.flush()
 
 
         # only train model if it hasn't been trained yet
@@ -68,6 +110,15 @@ class BracketSimulator:
                 ((self.data["year"] < self.year)) | 
                 ((self.data["year"] == self.year) & (self.data["type"] != "T"))
             ]
+
+            print("[DEBUG] training_data shape before train_model:", training_data.shape)
+            print("[DEBUG] training_data year counts:", training_data["year"].value_counts().sort_index().tail(10).to_dict())
+            print("[DEBUG] training_data type counts:", training_data["type"].value_counts(dropna=False).to_dict())
+            print("[DEBUG] training_data round counts sample:", training_data["current_round"].value_counts().sort_index().to_dict())
+            print("[DEBUG] training_data first 10 rows:")
+            print(training_data[["year", "type", "team_1", "team_2", "current_round", "winner"]].head(10).to_string())
+            sys.stdout.flush()
+
             model, predictors = self.train_model(training_data)
             log_memory_usage("After training model")
 
@@ -106,6 +157,10 @@ class BracketSimulator:
     
     def train_model(self, training_data):
 
+        print("\n[DEBUG] train_model ENTER")
+        print("[DEBUG] incoming training_data shape:", training_data.shape)
+        sys.stdout.flush()
+
         # define feature importance multipliers for different playstyles
         weight_multiplier = 1  
         feature_weights = {
@@ -130,11 +185,20 @@ class BracketSimulator:
             '3p_percent_d_diff', '2p_percent_d_diff', 'recent_wab_diff'
         ]
 
+        print("[DEBUG] predictors:", predictors)
+        print("[DEBUG] number of predictors:", len(predictors))
+        sys.stdout.flush()
+
         # apply feature weights
         training_data = training_data.copy()
         for feature, weight in feature_weights.get(self.playstyle, {}).items():
             if feature in training_data.columns:
                 training_data[feature] = training_data[feature] * weight 
+        
+        print("[DEBUG] post-copy training_data shape:", training_data.shape)
+        print("[DEBUG] null counts in predictors:")
+        print(training_data[predictors].isnull().sum().to_string())
+        sys.stdout.flush()
 
         # initialize sample weights to 1 (base weight)
         training_data["weight"] = 1.0  
@@ -156,6 +220,20 @@ class BracketSimulator:
         # ensure weights are always positive and non-zero
         training_data["weight"] = training_data["weight"].clip(lower=0.01).fillna(0.01)
 
+        print("[DEBUG] weight summary:")
+        print(training_data["weight"].describe().to_string())
+        print("[DEBUG] weight by type:")
+        print(training_data.groupby("type")["weight"].describe().to_string())
+        sys.stdout.flush()
+
+        print("[DEBUG] X_train shape:", training_data[predictors].shape)
+        print("[DEBUG] y_train shape:", training_data["winner"].shape)
+        print("[DEBUG] y_train distribution:", training_data["winner"].value_counts(dropna=False).to_dict())
+        print("[DEBUG] first 8 X rows:")
+        print(training_data[predictors].head(8).to_string())
+        print("[DEBUG] first 8 y values:", training_data["winner"].head(8).tolist())
+        sys.stdout.flush()
+
         # train the model
         model = XGBClassifier(
             n_estimators=50,
@@ -165,8 +243,12 @@ class BracketSimulator:
             colsample_bytree=0.8,
             gamma=2,
             random_state=44,
+            # n_jobs=1,
             tree_method='hist'
         )
+
+        print("[DEBUG] model fit complete")
+        sys.stdout.flush()
 
         # fit the model
         model.fit(training_data[predictors], 
@@ -181,6 +263,16 @@ class BracketSimulator:
 
     def predict_games(self, model, matchups, predictors):
 
+        round_label = int(matchups["current_round"].iloc[0]) if len(matchups) else None
+        print(f"\n[DEBUG] ===== ROUND {round_label} =====")
+
+        print("\n[DEBUG] predict_games ENTER")
+        print("[DEBUG] incoming matchups shape:", matchups.shape)
+        print("[DEBUG] incoming matchups round:", matchups["current_round"].iloc[0] if len(matchups) else None)
+        print("[DEBUG] incoming matchup teams:")
+        print(matchups[["team_1", "team_2", "seed_1", "seed_2", "current_round"]].to_string())
+        sys.stdout.flush()
+
         matchups = matchups.copy()
         matchups[predictors] = matchups[predictors].apply(pd.to_numeric, errors='coerce')
 
@@ -189,6 +281,14 @@ class BracketSimulator:
         matchups.loc[:, "win probability"] = probs[:, 1]
         p = matchups["win probability"]
 
+        print("[DEBUG] raw predict_proba first rows:")
+        print(pd.DataFrame({
+            "team_1": matchups["team_1"],
+            "team_2": matchups["team_2"],
+            "prob_team1_wins": probs[:, 1]
+        }).to_string())
+        sys.stdout.flush()
+
         # factor in path likelihoods
         alpha = 0.5 # weighting of path odds vs win prob
         adjusted_p = (p * (matchups["team1_path_odds"] ** alpha)) / (
@@ -196,14 +296,18 @@ class BracketSimulator:
         )
         matchups["adj win probability"] = adjusted_p
 
+        print("[DEBUG] adjusted probabilities:")
+        print(matchups[["team_1", "team_2", "win probability", "team1_path_odds", "team2_path_odds", "adj win probability"]].to_string())
+        sys.stdout.flush()
+
         # update path likelihoods for next round
         matchups["team1_path_odds"] *= matchups["win probability"]
         matchups["team2_path_odds"] *= (1 - matchups["win probability"])
 
         # add a little normally distributed randomness for fun :)
-        randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
-        randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
-        matchups["adj win probability"] = np.clip(matchups["adj win probability"] + randomness, 0.001, 0.999)
+        #randomness = np.random.normal(0, 0.05, size=matchups.shape[0])
+        #randomness = np.clip(randomness, -0.1, 0.1)  # so it doesn't get too out of hand
+        #matchups["adj win probability"] = np.clip(matchups["adj win probability"] + randomness, 0.001, 0.999)
 
 
         # set different thresholds based on boldness and if the team 1 is higher/lower seed
@@ -235,10 +339,21 @@ class BracketSimulator:
         matchups.loc[matchups["team_1"] == self.picked_winner, "prediction"] = 1
         matchups.loc[matchups["team_2"] == self.picked_winner, "prediction"] = 0
 
+        print("[DEBUG] final predictions this round:")
+        print(matchups[["team_1", "team_2", "seed_1", "seed_2", "adj win probability", "prediction"]].to_string())
+        sys.stdout.flush()
+
         return matchups
 
 
     def get_winner_info(self, matchups):
+
+        print("\n[DEBUG] get_winner_info ENTER")
+        print("[DEBUG] winners this round:")
+        debug_winners = matchups[["team_1", "team_2", "prediction", "current_round"]].copy()
+        debug_winners["picked_team"] = np.where(debug_winners["prediction"] == 1, debug_winners["team_1"], debug_winners["team_2"])
+        print(debug_winners.to_string())
+        sys.stdout.flush()
 
         # identify winners
         winner_mask = matchups["prediction"].to_numpy() 
@@ -259,10 +374,20 @@ class BracketSimulator:
         next_round_teams["current_round"] = matchups["current_round"].values / 2
         next_round_teams["path_odds"] = winning_path_odds
 
+        print("[DEBUG] next_round_teams:")
+        print(next_round_teams[["team", "seed", "round", "current_round", "path_odds"]].to_string())
+        sys.stdout.flush()
+
         return next_round_teams
 
 
     def next_sim_matchups(self, winning_teams):
+
+        print("\n[DEBUG] next_sim_matchups ENTER")
+        print("[DEBUG] winning_teams shape:", winning_teams.shape)
+        print("[DEBUG] winning_teams rows:")
+        print(winning_teams[["team", "seed", "round", "current_round", "path_odds"]].to_string())
+        sys.stdout.flush()
 
         # select alternating rows for team1 and team2
         team1 = winning_teams.iloc[::2].reset_index(drop=True)
@@ -295,6 +420,10 @@ class BracketSimulator:
             matchups[f'{var}_1'] = team1[var].values
             matchups[f'{var}_2'] = team2[var].values
             matchups[f'{var}_diff'] = team1[var].values - team2[var].values  # Vectorized subtraction
+
+        print("[DEBUG] next round matchups created:")
+        print(matchups[["team_1", "team_2", "seed_1", "seed_2", "current_round", "team1_path_odds", "team2_path_odds"]].to_string())
+        sys.stdout.flush()
 
         return matchups
 

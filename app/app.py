@@ -12,6 +12,13 @@ import base64
 import psutil, os, tracemalloc
 import sys
 import gc
+import random
+import inspect
+
+SEED = 44
+os.environ["PYTHONHASHSEED"] = str(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
 
 # start memory tracer for detailed memory snapshots
 tracemalloc.start()
@@ -31,6 +38,11 @@ except ModuleNotFoundError:
     # for local testing
     from models.bracket_model import BracketSimulator
 
+print("[DEBUG] BracketSimulator file:", inspect.getfile(BracketSimulator))
+print("[DEBUG] Python executable:", sys.executable)
+print("[DEBUG] Working directory:", os.getcwd())
+sys.stdout.flush()
+
 # initialize the Flask app
 app = Flask(__name__)
 app.secret_key = 'BBallSim'
@@ -38,7 +50,14 @@ app.secret_key = 'BBallSim'
 # helper functions to load data on demand (lazy loading)
 def get_matchup_data():
     if 'matchup_data' not in g:
-        g.matchup_data = pd.read_parquet("data/all_matchup_stats.parquet")
+        path = "data/all_matchup_stats.parquet"
+        print("[DEBUG] Loading matchup data from:", os.path.abspath(path))
+        g.matchup_data = pd.read_parquet(path)
+        print("[DEBUG] matchup_data shape:", g.matchup_data.shape)
+        print("[DEBUG] matchup_data columns sample:", g.matchup_data.columns[:15].tolist())
+        print("[DEBUG] matchup_data years:", sorted(g.matchup_data["year"].dropna().unique().tolist())[-10:])
+        print("[DEBUG] matchup_data type counts:", g.matchup_data["type"].value_counts(dropna=False).to_dict())
+        sys.stdout.flush()
     return g.matchup_data
 
 def get_public_scores():
@@ -351,15 +370,45 @@ def simulate():
     try:
         log_memory_usage("simulate start")
         input_data = request.json
+
+        print("\n" + "="*80)
+        print("[DEBUG] /simulate called")
+        print("[DEBUG] raw input_data:", input_data)
+        print("[DEBUG] session id exists:", 'selected_params' in session)
+        sys.stdout.flush()
+
         log_memory_usage("After reading input_data")
+
         year = input_data.get('year', 2024)
         picked_winner = input_data.get('picked_winner')
         playstyle = input_data.get('playstyle', 'Balanced')
         boldness = input_data.get('boldness', 'Normal')
+
+        print("[DEBUG] year:", year)
+        print("[DEBUG] picked_winner:", picked_winner)
+        print("[DEBUG] playstyle:", playstyle)
+        print("[DEBUG] boldness:", boldness)
+        print("[DEBUG] numpy first 5 randoms after seed:", np.random.random(5))
+        sys.stdout.flush()
+
         data = get_matchup_data()
+
+        print("[DEBUG] simulate data shape:", data.shape)
+        print("[DEBUG] simulate year rows:", data[data["year"] == year].shape[0])
+        print("[DEBUG] simulate tournament rows for year:", data[(data["year"] == year) & (data["type"] == "T")].shape[0])
+        print("[DEBUG] simulate round64 rows for year:", data[(data["year"] == year) & (data["type"] == "T") & (data["current_round"] == 64)].shape[0])
+        sys.stdout.flush()
+
         log_memory_usage("After loading matchup_data")
         simulator = BracketSimulator(data, year, picked_winner, playstyle, boldness)
         simulator.sim_bracket()
+
+        print("[DEBUG] predicted_bracket shape:", simulator.predicted_bracket.shape)
+        print("[DEBUG] predicted_bracket round counts:", simulator.predicted_bracket["current_round"].value_counts().sort_index().to_dict())
+        print("[DEBUG] predicted_bracket first 12 rows:")
+        print(simulator.predicted_bracket[["team_1", "team_2", "current_round", "win probability", "adj win probability", "prediction"]].head(12).to_string())
+        sys.stdout.flush()
+
         log_memory_usage("After sim_bracket")
         predictions, tournament_complete = format_bracket(simulator.predicted_bracket)
         try:
@@ -379,6 +428,13 @@ def simulate():
         session['score'] = score
         session['percentile'] = percentile
         session['tournament_complete'] = tournament_complete
+        
+        print("[DEBUG] final score:", score)
+        print("[DEBUG] final percentile:", percentile)
+        print("[DEBUG] tournament_complete:", tournament_complete)
+        print("="*80 + "\n")
+        sys.stdout.flush()
+
         log_memory_usage("Before returning response")
         return jsonify({'redirect_url': url_for('results')})
     except Exception as e:
